@@ -59,6 +59,9 @@ void initOutroContent()
     g_outroScreen.customSprites = "Custom Sprites:";
 
     g_outroScreen.specialThanks = "Special Thanks:";
+	
+    g_outroScreen.NsPrPostDialogue1 = "'Finally, Mushroom Kingdom was returned to";
+    g_outroScreen.NsPrPostDialogue2 = "peace by everyone's effort and battlings......'";
 }
 
 
@@ -294,6 +297,9 @@ void SetupCredits()
     AddCredit(g_outroScreen.nameAndrewSpinks);
     AddCredit("'Redigit'");
     AddCredit("");
+    AddCredit("Fork to [Nostalgic Paradise]:");
+    AddCredit("Yingchun Soul");
+    AddCredit("");
     AddCredit("");
 #ifndef ENABLE_OLD_CREDITS
     AddCredit(g_outroScreen.cppPortDevelopers);
@@ -409,17 +415,10 @@ void SetupCredits()
     AddCredit("");
     AddCredit("");
     AddCredit("");
-#ifndef ENABLE_OLD_CREDITS
-    AddCredit("'It just works!'");
-    AddCredit("");
-    AddCredit("Todd Howard");
-#else
-    AddCredit("'He has delivered us from the power");
-    AddCredit("of darkness and conveyed us into");
-    AddCredit("the kingdom of the Son of His love.'");
-    AddCredit("");
-    AddCredit("Colossians 1:13");
-#endif
+    //Post-dialogue for Nostalgic Paradise
+    AddCredit(g_outroScreen.NsPrPostDialogue1);
+    AddCredit(g_outroScreen.NsPrPostDialogue2);
+    
     AddCredit("");
     AddCredit("");
     AddCredit("");

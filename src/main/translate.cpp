@@ -426,6 +426,9 @@ XTechTranslate::XTechTranslate()
         {"outro.levelDesign",           &g_outroScreen.levelDesign},
         {"outro.customSprites",         &g_outroScreen.customSprites},
         {"outro.specialThanks",         &g_outroScreen.specialThanks},
+	//Post-dialogue for Nostalgic Paradise
+	{"outro.NsPrPostDialogue1",         &g_outroScreen.NsPrPostDialogue1},
+	{"outro.NsPrPostDialogue2",         &g_outroScreen.NsPrPostDialogue2},
 
 
         {"game.controls.phrasePlayerDisconnected",  &g_gameStrings.controlsPhrasePlayerDisconnected},
