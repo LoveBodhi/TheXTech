@@ -260,12 +260,14 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
     // Find out what the block should turn into
     if(b.Type == 88 || b.Type == 90 || b.Type == 89 || b.Type == 171 || b.Type == 174 || b.Type == 177 || b.Type == 180) // SMW
         newBlock = 89;
-    else if(b.Type == 188 || b.Type == 192 || b.Type == 193 || b.Type == 60 || b.Type == 369) // SMB1
+    else if(b.Type == 188 || b.Type == 192 || b.Type == 193 || b.Type == 369) // SMB1
         newBlock = 192;
     else if(b.Type == 224 || b.Type == 225 || b.Type == 226) // Large SMB3 blocks
         newBlock = 225;
     else if(b.Type == 159) // SMB3 Battle Block
         newBlock = 159;
+    else if(b.Type == 60) // Underground Block
+        newBlock = 537;
     else // Everything else defaults to SMB3
         newBlock = 2;
 
@@ -314,13 +316,15 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
                     nn = NPC_t();
                     nn.Active = true;
                     nn.TimeLeft = 100;
-
+		    nn.Type = NPCID_COIN_S3;
+		    /*
                     if(newBlock == 89)
                         nn.Type = NPCID_COIN_S4;
                     else if(newBlock == 192)
                         nn.Type = NPCID_COIN_S1;
                     else
                         nn.Type = NPCID_COIN_S3;
+		    */
 
                     if(Player[whatPlayer].Character == 5)
                     {
@@ -411,7 +415,7 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
                     nn.Type = NPCID_COIN_S3;
                 }
 #endif
-                nn.Type = NPCID_COIN_S2;
+                nn.Type = NPCID_COIN_S3;
 
                 nn.Location.Width = nn->TWidth;
                 nn.Location.Height = nn->THeight;
@@ -1159,6 +1163,14 @@ void BlockFrames()
     BlockFrame[380] = BlockFrame[379];
     BlockFrame[381] = BlockFrame[379];
     BlockFrame[382] = BlockFrame[379];
+    BlockFrame[581] = BlockFrame[379];
+    BlockFrame[582] = BlockFrame[379];
+    BlockFrame[583] = BlockFrame[379];
+    BlockFrame[584] = BlockFrame[379];
+    BlockFrame[586] = BlockFrame[379];
+    BlockFrame[587] = BlockFrame[379];
+    BlockFrame[588] = BlockFrame[379];
+    BlockFrame[589] = BlockFrame[379];
 
     BlockFrame2[530] += 1;
 
