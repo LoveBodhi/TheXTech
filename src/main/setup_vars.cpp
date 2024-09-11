@@ -2597,6 +2597,23 @@ void SetupVars()
     {
         BlockKills[A] = true;
     }
+    
+    // Add-on Blocks
+    
+    BlockSlope2[643] = 1;
+    BlockSlope2[644] = -1;
+    BlockSlope2[645] = 1;
+    BlockSlope2[646] = -1;
+    BlockSlope2[651] = 1;
+    BlockSlope2[652] = -1;
+    BlockSlope2[653] = 1;
+    BlockSlope2[654] = -1;
+    
+    BlockWidth[645] = 64;
+    BlockWidth[646] = 64;
+    BlockWidth[653] = 64;
+    BlockWidth[654] = 64;
+    
     BackgroundHasNoMask[187] = true;
     BackgroundHasNoMask[188] = true;
     BackgroundHasNoMask[189] = true;
