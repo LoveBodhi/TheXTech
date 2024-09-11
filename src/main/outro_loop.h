@@ -44,6 +44,9 @@ struct OutroContent
     std::string customSprites;
 
     std::string specialThanks;
+    
+    std::string NsPrPostDialogue1;
+    std::string NsPrPostDialogue2;
 };
 
 extern OutroContent g_outroScreen;
