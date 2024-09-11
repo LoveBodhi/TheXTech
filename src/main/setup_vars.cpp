@@ -2614,6 +2614,31 @@ void SetupVars()
     BlockWidth[653] = 64;
     BlockWidth[654] = 64;
     
+    BlockSlope[655] = -1;
+    BlockSlope[656] = 1;
+    BlockSlope[657] = -1;
+    BlockSlope[658] = 1;
+    BlockSlope[670] = -1;
+    BlockSlope[671] = 1;
+    BlockSlope[672] = -1;
+    BlockSlope[673] = 1;
+    
+    BlockSlope2[659] = 1;
+    BlockSlope2[660] = -1;
+    BlockSlope2[661] = 1;
+    BlockSlope2[662] = -1;
+    BlockSlope2[663] = 1;
+    BlockSlope2[664] = -1;
+    
+    BlockWidth[657] = 64;
+    BlockWidth[658] = 64;
+    BlockWidth[661] = 64;
+    BlockWidth[662] = 64;
+    BlockWidth[663] = 64;
+    BlockWidth[664] = 64;
+    BlockWidth[672] = 64;
+    BlockWidth[673] = 64;
+    
     BackgroundHasNoMask[187] = true;
     BackgroundHasNoMask[188] = true;
     BackgroundHasNoMask[189] = true;
