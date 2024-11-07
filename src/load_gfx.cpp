@@ -1357,14 +1357,14 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
     }
 
 
-    for(int A = 1; A < maxYoshiGfx; ++A)
+    for(int A = 1; A <= maxYoshiGfx; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("yoshi/yoshib-{0}.png", A),
                  fmt::format_ne("yoshib-{0}", A),
                  nullptr, nullptr, GFXYoshiBCustom[A], GFXYoshiBBMP[A]);
     }
 
-    for(int A = 1; A < maxYoshiGfx; ++A)
+    for(int A = 1; A <= maxYoshiGfx; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("yoshi/yoshit-{0}.png", A),
                  fmt::format_ne("yoshit-{0}", A),
@@ -1390,7 +1390,7 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
     }
 
 
-    for(int A = 1; A < maxBlockType; ++A)
+    for(int A = 1; A <= maxBlockType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("block/block-{0}.png", A),
                  fmt::format_ne("block-{0}", A),
@@ -1398,7 +1398,7 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
                  false, BlockHasNoMask[A]);
     }
 
-    for(int A = 1; A < numBackground2; ++A)
+    for(int A = 1; A <= numBackground2; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("background2/background2-{0}.png", A),
                  fmt::format_ne("background2-{0}", A),
@@ -1406,14 +1406,14 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
                  false, true);
     }
 
-    for(int A = 1; A < maxNPCType; ++A)
+    for(int A = 1; A <= maxNPCType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("npc/npc-{0}.png", A),
                  fmt::format_ne("npc-{0}", A),
                  nullptr, nullptr, GFXNPCCustom[A], GFXNPCBMP[A]);
     }
 
-    for(int A = 1; A < maxEffectType; ++A)
+    for(int A = 1; A <= maxEffectType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("effect/effect-{0}.png", A),
                  fmt::format_ne("effect-{0}", A),
@@ -1426,7 +1426,7 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
         }
     }
 
-    for(int A = 1; A < maxBackgroundType; ++A)
+    for(int A = 1; A <= maxBackgroundType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("background/background-{0}.png", A),
                  fmt::format_ne("background-{0}", A),
@@ -1439,35 +1439,35 @@ void LoadCustomGFX(bool include_world, const char* preview_players_from)
         return;
 
 
-    for(int A = 1; A < maxTileType; ++A)
+    for(int A = 1; A <= maxTileType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("tile/tile-{0}.png", A),
                  fmt::format_ne("tile-{0}", A),
                  &GFXTileWidth[A], &GFXTileHeight[A], GFXTileCustom[A], GFXTileBMP[A], true);
     }
 
-    for(int A = 0; A < maxLevelType; ++A)
+    for(int A = 0; A <= maxLevelType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("level/level-{0}.png", A),
                  fmt::format_ne("level-{0}", A),
                  &GFXLevelWidth[A], &GFXLevelHeight[A], GFXLevelCustom[A], GFXLevelBMP[A], true);
     }
 
-    for(int A = 1; A < maxSceneType; ++A)
+    for(int A = 1; A <= maxSceneType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("scene/scene-{0}.png", A),
                  fmt::format_ne("scene-{0}", A),
                  &GFXSceneWidth[A], &GFXSceneHeight[A], GFXSceneCustom[A], GFXSceneBMP[A], true);
     }
 
-    for(int A = 1; A < numCharacters; ++A)
+    for(int A = 1; A <= numCharacters; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("player/player-{0}.png", A),
                  fmt::format_ne("player-{0}", A),
                  &GFXPlayerWidth[A], &GFXPlayerHeight[A], GFXPlayerCustom[A], GFXPlayerBMP[A], true);
     }
 
-    for(int A = 1; A < maxPathType; ++A)
+    for(int A = 1; A <= maxPathType; ++A)
     {
         loadCGFX(GfxRoot + fmt::format_ne("path/path-{0}.png", A),
                  fmt::format_ne("path-{0}", A),
@@ -1601,10 +1601,19 @@ void UpdateLoadREAL()
         XRender::setTargetTexture();
         XRender::clearBuffer();
 
+        bool assets_reload = (ScreenAssetPack::g_LoopActive && g_AssetsLoaded);
+
         int sh_w = XRender::TargetW / 2;
         int gh_w = GFX.MenuGFX[4].w / 2;
         int sh_h = XRender::TargetH / 2;
         int gh_h = GFX.MenuGFX[4].h / 2;
+
+        // use default coordinates during reload
+        if(assets_reload)
+        {
+            gh_w = 400;
+            gh_h = 300;
+        }
 
         int Left    = sh_w - gh_w;
         int Top     = sh_h - gh_h;
@@ -1626,7 +1635,7 @@ void UpdateLoadREAL()
         Left += XRender::TargetOverscanX;
         Right -= XRender::TargetOverscanX;
 
-        if(ScreenAssetPack::g_LoopActive && g_AssetsLoaded)
+        if(assets_reload)
         {
             ScreenAssetPack::DrawBackground(1.0);
             DrawDeviceBattery();

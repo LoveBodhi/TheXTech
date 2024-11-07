@@ -21,6 +21,7 @@
 #include "sdl_proxy/sdl_stdinc.h"
 #include "sdl_proxy/sdl_timer.h"
 
+#include <json/json_rwops_input.hpp>
 #include <json/json.hpp>
 #include <algorithm>
 
@@ -1501,7 +1502,7 @@ void OpenLevelDataPost()
     // If too much locks
     SDL_assert_release(numBackground + numLocked <= (maxBackgrounds + maxWarps));
 
-    SoundPause[13] = 100;
+    SoundPause[SFX_Camera] = 100;
     resetFrameTimer();
 }
 

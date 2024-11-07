@@ -274,7 +274,7 @@ void DrawBackground(double fade)
         s_AnimatingBack = false;
 }
 
-void Render()
+void Render(bool now_loading = false)
 {
     XRender::setTargetTexture();
     XRender::resetViewport();
@@ -290,6 +290,20 @@ void Render()
     XRender::renderTexture(int(SharedCursor.X), int(SharedCursor.Y), GFX.ECursor[2]);
 
     DrawDeviceBattery();
+
+    if(now_loading)
+    {
+        int R = XRender::TargetW / 2 + 400;
+        int B = XRender::TargetH / 2 + 300;
+
+        if(R > XRender::TargetW)
+            R = XRender::TargetW;
+
+        if(B > XRender::TargetH)
+            B = XRender::TargetH;
+
+        XRender::renderTexture(R - 168, B - 24, GFX.Loader);
+    }
 
     XRender::repaint();
 
@@ -358,6 +372,15 @@ bool Logic()
         if(cur_idx != s_cur_idx || !g_AssetsLoaded)
         {
             s_cur_idx = cur_idx;
+
+            if(!g_AssetsLoaded)
+            {
+                XRender::clearBuffer();
+                XRender::repaint();
+            }
+            else
+                Render(true);
+
             CommonFrame = 0; // don't show indicators
             if(!ReloadAssetsFrom(GetAssetPacks()[cur_idx]))
             {

@@ -29,6 +29,7 @@
 #include "../main/record.h"
 #include "../main/speedrunner.h"
 #include "message.h"
+#include "change_res.h"
 
 #include "core/render.h"
 #include "core/window.h"
@@ -125,6 +126,21 @@ void Hotkeys::Activate(size_t i, int player)
         return;
     }
 #endif
+
+    case Buttons::VanillaCam:
+        if(!GameMenu && !GameOutro && !LevelEditor && !BattleMode && (g_VanillaCam || l_screen->W != l_screen->canonical_screen().W || l_screen->H != l_screen->canonical_screen().H))
+        {
+            g_VanillaCam = !g_VanillaCam;
+            SoundPause[SFX_Camera] = 0;
+            PlaySoundMenu(SFX_Camera);
+            UpdateInternalRes();
+        }
+        else
+        {
+            PlaySoundMenu(SFX_BlockHit);
+        }
+
+        return;
 
     case Buttons::DebugInfo:
         g_stats.next_page();
@@ -438,6 +454,7 @@ bool InputMethodType::DeleteProfile(InputMethodProfile* profile, const std::vect
             return false;
 
         player_no ++;
+        UNUSED(player_no);
     }
 
     for(int i = 0; i < maxLocalPlayers; i++)
@@ -1221,6 +1238,18 @@ void ClearInputMethods()
         DeleteInputMethod(g_InputMethods[i]);
 
     g_InputMethods.clear();
+}
+
+void RemoveNullInputMethods()
+{
+    // remove any null input methods
+    for(size_t i = 0; i < Controls::g_InputMethods.size(); )
+    {
+        if(Controls::g_InputMethods[i])
+            i++;
+        else
+            Controls::DeleteInputMethodSlot(i);
+    }
 }
 
 

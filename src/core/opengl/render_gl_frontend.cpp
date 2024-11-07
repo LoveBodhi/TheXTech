@@ -513,7 +513,7 @@ void RenderGL::repaint()
     if(m_current_frame % 512 == 0)
         cleanupDrawQueues();
 
-    m_shader_clock = (GLfloat)((m_current_frame) % (65 * 60)) / 65.0f;
+    m_shader_clock = (GLfloat)((CommonFrame_NotFrozen) % (65 * 60)) / 65.0f;
 
 #if 0
     GLuint err;
@@ -869,7 +869,14 @@ void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t 
     // SDL_Surface *surface;
     // SDL_Texture *texture = nullptr;
 
+#ifdef THEXTECH_BIG_ENDIAN
+    target.d.format = GL_RGBA;
+    const GLenum cpu_format = GL_RGBA;
+#else
     target.d.format = (m_has_bgra_textures) ? GL_BGRA_EXT : GL_RGBA;
+    const GLenum cpu_format = GL_BGRA_EXT;
+#endif
+
     target.d.nOfColors = target.d.format;
 
     GLuint tex_id;
@@ -889,7 +896,7 @@ void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t 
     pitch /= 4;
 
     // can't do because of pixel substitution
-    if(pad_w == pitch && height == pad_h && target.d.format == GL_BGRA_EXT)
+    if(pad_w == pitch && height == pad_h && target.d.format == cpu_format)
     {
         use_pixels = RGBApixels;
     }
@@ -909,7 +916,7 @@ void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t 
         else
             SDL_memset(padded_pixels, 0, pad_w * pad_h * 4);
 
-        if(target.d.format == GL_BGRA_EXT)
+        if(target.d.format == cpu_format)
         {
             uint32_t* padded_pixels_q = reinterpret_cast<uint32_t*>(padded_pixels);
             uint32_t* input_pixels_q = reinterpret_cast<uint32_t*>(RGBApixels);
@@ -1025,9 +1032,9 @@ void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t 
 #endif
 }
 
-void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t height, uint8_t *RGBApixels, uint32_t pitch)
+void RenderGL::loadTextureInternal(StdPicture &target, uint32_t width, uint32_t height, uint8_t *RGBApixels, uint32_t pitch, uint32_t mask_width, uint32_t mask_height)
 {
-    loadTextureInternal(target, width, height, RGBApixels, pitch, false, width, height);
+    loadTextureInternal(target, width, height, RGBApixels, pitch, false, mask_width, mask_height);
 }
 
 void RenderGL::loadTextureMask(StdPicture &target, uint32_t mask_width, uint32_t mask_height, uint8_t *RGBApixels, uint32_t pitch, uint32_t image_width, uint32_t image_height)

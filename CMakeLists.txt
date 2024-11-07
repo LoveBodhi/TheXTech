@@ -133,7 +133,7 @@ endif()
 #endif()
 set(USE_SYSTEM_LIBS_DEFAULT OFF)
 
-if(HAIKU OR VITA OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_WIIU OR XTECH_MACOSX_TIGER)
+if(HAIKU OR VITA OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_WIIU OR XTECH_MACOSX_TIGER OR PORTMASTER)
     set(USE_SYSTEM_SDL2_DEFAULT ON)  # Should be used on Haiku, own SDL2 Haiku build on CMake is broken
 else()
     set(USE_SYSTEM_SDL2_DEFAULT ${USE_SYSTEM_LIBS_DEFAULT})
@@ -164,7 +164,7 @@ if(NINTENDO_3DS)
     option(THEXTECH_CUSTOM_AUDIO_LIBRARY "Use the custom audio library instead of MixerX" OFF)
 endif()
 
-if(ANDROID OR VITA OR NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_SWITCH OR PGE_MIN_PORT OR THEXTECH_NO_SDL_BUILD)
+if(ANDROID OR VITA OR NINTENDO_3DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_SWITCH OR PGE_MIN_PORT OR THEXTECH_NO_SDL_BUILD OR PORTMASTER)
     set(THEXTECH_FORCE_FULLSCREEN ON)
 else()
     option(THEXTECH_FORCE_FULLSCREEN "Force the game to only use fullscreen mode" OFF)
@@ -211,6 +211,7 @@ set(THEXTECH_CREDITS_TITLE "" CACHE STRING "Custom game title, shown at the outr
 
 set(THEXTECH_PACKAGE_NAME "thextech" CACHE STRING "Name of package archive file")
 set(THEXTECH_EXECUTABLE_NAME "thextech" CACHE STRING "Name of executable file")
+set(THEXTECH_INSTALLER_PACKAGE_NAME "${THEXTECH_EXECUTABLE_NAME}" CACHE STRING "The package name for the package manager")
 
 if(APPLE)
     set(THEXTECH_PRELOAD_ENVIRONMENT "" CACHE STRING "Path to resources root to pack")
@@ -306,6 +307,23 @@ if(NINTENDO_WIIU)
     set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
 endif()
 
+if(UNIX)
+    option(PORTMASTER "Make a special build for PortMaster" OFF)
+endif()
+
+if(PORTMASTER)
+    message("Special build for PortMaster.")
+
+    set(THEXTECH_BUILD_GL_DESKTOP_MODERN OFF CACHE BOOL "" FORCE)
+    set(THEXTECH_BUILD_GL_DESKTOP_LEGACY OFF CACHE BOOL "" FORCE)
+    set(THEXTECH_BUILD_GL_ES_MODERN ON CACHE BOOL "" FORCE)
+    set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
+    set(USE_SYSTEM_SDL2 ON CACHE BOOL "" FORCE)
+    set(PGE_SHARED_SDLMIXER OFF CACHE BOOL "" FORCE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+endif()
+
 if(THEXTECH_CLI_BUILD)
     set(THEXTECH_BUILD_GL_DESKTOP_MODERN OFF CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_DESKTOP_LEGACY OFF CACHE BOOL "" FORCE)
@@ -313,7 +331,7 @@ if(THEXTECH_CLI_BUILD)
     set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
 endif()
 
-if(THEXTECH_CLI_BUILD OR PGE_MIN_PORT OR EMSCRIPTEN)
+if(THEXTECH_CLI_BUILD OR PGE_MIN_PORT OR EMSCRIPTEN OR PORTMASTER)
     set(RANGE_ARR_UNSAFE_MODE ON)
 endif()
 
@@ -828,6 +846,7 @@ set(THEXTECH_SRC
     src/fontman/font_manager_private.cpp
     src/fontman/raster_font.cpp
     src/fontman/legacy_font.cpp
+    src/fontman/hardcoded_font.cpp
     src/fontman/utf8_helpers.cpp
 )
 
@@ -982,6 +1001,16 @@ else()
         src/core/power/power_sdl.cpp
     )
 
+    if(NINTENDO_WIIU)
+        list(APPEND THEXTECH_SRC
+            src/core/wiiu/msgbox_wiiu.cpp
+        )
+    else()
+        list(APPEND THEXTECH_SRC
+            src/core/sdl/msgbox_sdl.cpp
+        )
+    endif()
+
     if(THEXTECH_BUILD_GL_DESKTOP_MODERN OR THEXTECH_BUILD_GL_DESKTOP_LEGACY OR THEXTECH_BUILD_GL_ES_MODERN OR THEXTECH_BUILD_GL_ES_LEGACY)
         list(APPEND THEXTECH_SRC
             src/core/opengl/gl_program_object.cpp
@@ -1072,9 +1101,18 @@ file(GLOB THEXTECH_HEADS_SRC
     src/script/luna/level/*.h
     src/control/*.h
     src/core/*.h
+    src/core/16m/*.h
+    src/core/3ds/*.h
     src/core/base/*.h
-    src/core/sdl/*.h
     src/core/language/*.h
+    src/core/minport/*.h
+    src/core/null/*.h
+    src/core/opengl/*.h
+    src/core/power/*.h
+    src/core/sdl/*.h
+    src/core/vita/*.h
+    src/core/wii/*.h
+    src/core/wiiu/*.h
     src/editor/*.h
     src/main/*.h
     src/main/translate/*.h
