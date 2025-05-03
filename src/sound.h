@@ -163,6 +163,7 @@ enum
     SFX_HeroFireRod,
     SFX_FlameThrower,
     SFX_FlagExit,
+    SFX_HeavyBlock,
 };
 
 int CustomWorldMusicId();
