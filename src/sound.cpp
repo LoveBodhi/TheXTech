@@ -1465,6 +1465,7 @@ static const std::unordered_map<int, int> s_soundFallback =
     {SFX_FlameThrower, SFX_HeroFire},
     {SFX_FlagExit, SFX_TapeExit},
     {SFX_PlayerHeavy, SFX_Fireball},
+    {SFX_HeavyBlock, SFX_Stone},
 };
 
 static int getFallbackSfx(int A)
