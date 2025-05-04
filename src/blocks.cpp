@@ -171,7 +171,7 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
        b.Type == 169 || b.Type == 170 || b.Type == 173 ||
        b.Type == 176 || b.Type == 179 || b.Type == 188 ||
        b.Type == 226 || b.Type == 281 || b.Type == 282 ||
-       b.Type == 283 || (b.Type >= 622 && b.Type <= 625))
+       b.Type == 283 || (b.Type >= 622 && b.Type <= 625) || b.Type == 656)
     {
         if(!HitDown)
             BlockShakeUp(A);
@@ -183,7 +183,7 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
     if(b.Type == 169)
     {
         PlaySoundSpatial(SFX_PSwitch, b.Location);
-        BeltDirection = -BeltDirection; // for the blet direction changing block
+        BeltDirection = -BeltDirection; // for the belt direction changing block
 
         for(auto B = 1; B <= numBlock; B++)
         {
@@ -199,7 +199,16 @@ void BlockHit(int A, bool HitDown, int whatPlayer)
             }
         }
     }
-
+    
+    //Yingchun Soul Experiment: Sync Blocks
+    if(b.Type == 656)
+    {
+        PlaySoundSpatial(SFX_PSwitch, b.Location);
+	if (!SyncBlockHit)
+		SyncBlockHit = true;
+	else
+		SyncBlockHit = false;
+    }
 
     // note: these four cases were previously handled using separate code
     NPCID switch_npc = NPCID_NULL;
@@ -1218,6 +1227,12 @@ void BlockFrames()
         BlockFrame2[530] = 0;
     }
 
+    //Yingchun Soul Experiment: Sync Blocks
+    if (SyncBlockHit)
+	    BlockFrame[656] = 1;
+    else
+	    BlockFrame[656] = 0;
+    
     if(LevelEditor && !TestLevel)
         BlockFrame[458] = 5;
     else

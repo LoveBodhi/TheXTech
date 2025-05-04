@@ -595,6 +595,9 @@ bool g_isHBLauncher = false;
 //     return g_events->getScanCodeName(key);
 // }
 
+//Experiment Functions (by Yingchun Soul)
+bool SyncBlockHit = false;
+
 void initAll()
 {
     // SavedEvents.fill(std::string());

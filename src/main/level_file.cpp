@@ -1833,6 +1833,9 @@ void ClearLevel()
     PlayerStart[2] = BlankLocation;
 
     // noUpdate = false;
+    
+    //Experiment Functions (by Yingchun Soul)
+    SyncBlockHit = false;
 }
 
 void FindStars()

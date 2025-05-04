@@ -1740,6 +1740,9 @@ extern RangeArrI<int, 0, maxNPCType, 0> NPCFrameSpeed;
 extern RangeArrI<int, 0, maxNPCType, 0> NPCFrameStyle;
 #endif
 
+//Experiment Functions (by Yingchun Soul)
+extern bool SyncBlockHit;
+
 //Public Type NPCDefaults 'Default NPC Settings
 // Moved into custom.cpp as local-private
 
