@@ -1229,9 +1229,17 @@ void BlockFrames()
 
     //Yingchun Soul Experiment: Sync Blocks
     if (SyncBlockHit)
-	    BlockFrame[656] = 1;
+	    {
+		BlockFrame[656] = 1;
+		BlockFrame[658] = 0;
+	    }
     else
-	    BlockFrame[656] = 0;
+	    {
+		BlockFrame[656] = 0;
+	        BlockFrame[658] = 1;
+	    }
+    
+    BlockFrame[657] = BlockFrame[656];
     
     if(LevelEditor && !TestLevel)
         BlockFrame[458] = 5;

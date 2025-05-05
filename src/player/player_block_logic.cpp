@@ -474,7 +474,13 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                             //    HitSpot = 0;
                             //if(Block[B].Type == 632 && Player[A].Character == 5)
                             //    HitSpot = 0;
-
+			    
+			    // Yingchun Soul Experiment: Sync Block
+			    if (SyncBlockHit && Block[B].Type == 657)
+				    HitSpot = 0;
+			    if (!SyncBlockHit && Block[B].Type == 658)
+				    HitSpot = 0;
+			    
                             if(g_config.fix_player_clip_wall_at_npc && (HitSpot == 5 || HitSpot == 3) && oldStandingOnNpc > 0 && Player[A].Jump)
                             {
                                 // Re-compute the collision with a block to avoid the unnecessary clipping through the wall
