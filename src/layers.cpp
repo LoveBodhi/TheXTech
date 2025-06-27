@@ -23,6 +23,7 @@
 #include "sdl_proxy/sdl_stdinc.h"
 #include "globals.h"
 #include "layers.h"
+#include "saved_layers.h"
 #include "effect.h"
 #include "collision.h"
 #include "npc.h"
@@ -143,37 +144,37 @@ bool SwapLayers(layerindex_t index_1, layerindex_t index_2)
 
     std::swap(Layer[index_1], Layer[index_2]);
 
-    // repoint all of Layer 1's objects to index 2
+    // repoint all of the new Layer 1's objects to index 1
     for(int A : Layer[index_1].NPCs)
-        NPC[A].Layer = index_2;
-
-    for(int A : Layer[index_1].blocks)
-        Block[A].Layer = index_2;
-
-    for(int A : Layer[index_1].BGOs)
-        Background[A].Layer = index_2;
-
-    for(int A : Layer[index_1].warps)
-        Warp[A].Layer = index_2;
-
-    for(int A : Layer[index_1].waters)
-        Water[A].Layer = index_2;
-
-    // repoint all of Layer 2's objects to index 1
-    for(int A : Layer[index_2].NPCs)
         NPC[A].Layer = index_1;
 
-    for(int A : Layer[index_2].blocks)
+    for(int A : Layer[index_1].blocks)
         Block[A].Layer = index_1;
 
-    for(int A : Layer[index_2].BGOs)
+    for(int A : Layer[index_1].BGOs)
         Background[A].Layer = index_1;
 
-    for(int A : Layer[index_2].warps)
+    for(int A : Layer[index_1].warps)
         Warp[A].Layer = index_1;
 
-    for(int A : Layer[index_2].waters)
+    for(int A : Layer[index_1].waters)
         Water[A].Layer = index_1;
+
+    // repoint all of the new Layer 2's objects to index 2
+    for(int A : Layer[index_2].NPCs)
+        NPC[A].Layer = index_2;
+
+    for(int A : Layer[index_2].blocks)
+        Block[A].Layer = index_2;
+
+    for(int A : Layer[index_2].BGOs)
+        Background[A].Layer = index_2;
+
+    for(int A : Layer[index_2].warps)
+        Warp[A].Layer = index_2;
+
+    for(int A : Layer[index_2].waters)
+        Water[A].Layer = index_2;
 
     // swap AttLayers
     for(int A = 1; A <= numNPCs; A++)
@@ -453,6 +454,9 @@ void ShowLayer(layerindex_t L, bool NoEffect)
     int A = 0;
     int B = 0;
 
+    if(Layer[L].SavedLayer)
+        SavedLayers[Layer[L].SavedLayer - 1].Visible = true;
+
     Layer[L].Hidden = false;
     if(L == LAYER_DESTROYED_BLOCKS)
         Layer[L].Hidden = true;
@@ -494,6 +498,14 @@ void ShowLayer(layerindex_t L, bool NoEffect)
             {
                 bool hit = false;
 
+                // see if it's close to a canonical screen (within 8px), and disallow it from activating if not
+                // (fixes mostly vanilla bug which occurs because visible NPCs move following Deactivate but hidden NPCs don't)
+                Location_t tempLocation = NPC[A].Location;
+                tempLocation.X -= 8;
+                tempLocation.Y -= 8;
+                tempLocation.Width += 16;
+                tempLocation.Height += 16;
+
                 for(int screen_i = 0; !hit && screen_i < c_screenCount; screen_i++)
                 {
                     const Screen_t& screen = Screens[screen_i];
@@ -508,7 +520,7 @@ void ShowLayer(layerindex_t L, bool NoEffect)
                     {
                         int vscreen_Z = screen.vScreen_refs[vscreen_i];
 
-                        if(vScreenCollision(vscreen_Z, NPC[A].Location))
+                        if(vScreenCollision(vscreen_Z, tempLocation))
                             hit = true;
                     }
                 }
@@ -589,6 +601,9 @@ void HideLayer(layerindex_t L, bool NoEffect)
 {
     if(L == LAYER_NONE)
         return;
+
+    if(Layer[L].SavedLayer)
+        SavedLayers[Layer[L].SavedLayer - 1].Visible = false;
 
     Layer[L].Hidden = true;
 

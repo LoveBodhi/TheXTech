@@ -148,6 +148,7 @@ void Hotkeys::Activate(size_t i, int player)
 
     case Buttons::EnterCheats:
         l_SharedControls.Pause = true;
+        l_SharedControls.ForcePause = true;
         PauseScreen::UnlockCheats();
         return;
 
@@ -823,6 +824,7 @@ bool Update(bool check_lost_devices)
     // track whether shared controls buttons were pressed last frame, to modify the global versions
     bool old_shared_pause = l_SharedControls.Pause;
     bool old_shared_legacy = l_SharedControls.LegacyPause;
+    bool old_shared_force = l_SharedControls.ForcePause;
 
     // reset per-frame state for SharedCursor
     SharedCursor.Move = false;
@@ -888,13 +890,16 @@ bool Update(bool check_lost_devices)
     // push shared controls
     if(l_SharedControls.Pause && !old_shared_pause)
         XMessage::PushMessage({XMessage::Type::shared_controls, 0, 0});
-    else if(old_shared_pause && !l_SharedControls.Pause)
-        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 1});
 
     if(l_SharedControls.LegacyPause && !old_shared_legacy)
+        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 1});
+
+    if(l_SharedControls.ForcePause && !old_shared_force)
         XMessage::PushMessage({XMessage::Type::shared_controls, 0, 2});
-    else if(old_shared_legacy && !l_SharedControls.LegacyPause)
-        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 3});
+
+    SharedPause = false;
+    SharedPauseLegacy = false;
+    SharedPauseForce = false;
 
     // sync any messages, and reset player controls to raw controls
     XMessage::Tick();

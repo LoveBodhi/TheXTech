@@ -111,6 +111,8 @@
 
 #include "main/trees.h"
 
+bool g_ShortDelay = false;
+
 void CheckActive();
 // set up sizable blocks
 void SizableBlocks();
@@ -679,7 +681,7 @@ int GameMain(const CmdLineSetup_t &setup)
 
             selWorld = 1;
 
-            if(SelectWorld[selWorld].WorldPath.empty())
+            if(SelectWorld[selWorld].WorldFilePath.empty())
             {
                 LevelSelect = false;
                 TestLevel = true;
@@ -960,6 +962,10 @@ int GameMain(const CmdLineSetup_t &setup)
                         {
                             SetupScreens();
                         });
+
+            // Ensure everything is clear
+            GraphicsClearScreen();
+            XEvents::doEvents();
         }
 
         // quickly exit if returned to menu from world test
@@ -1022,6 +1028,8 @@ int GameMain(const CmdLineSetup_t &setup)
             LevelBeatCode = 0;
             curWorldLevel = 0;
 
+            lunaReset();
+            ResetSoundFX();
             ClearWorld();
 
             ReturnWarp = 0;
@@ -1168,6 +1176,10 @@ int GameMain(const CmdLineSetup_t &setup)
                 speedRun_saveStats();
                 return 0;// Break on quit
             }
+
+            // Ensure everything is clear
+            GraphicsClearScreen();
+            XEvents::doEvents();
         }
 
         // World Map
@@ -1254,13 +1266,13 @@ int GameMain(const CmdLineSetup_t &setup)
                 if(GoToLevel.empty())
                 {
                     if(FileRecentSubHubLevel.empty())
-                        levelPath = SelectWorld[selWorld].WorldPath + StartLevel;
+                        levelPath = FileNamePathWorld + StartLevel;
                     else
-                        levelPath = SelectWorld[selWorld].WorldPath + FileRecentSubHubLevel;
+                        levelPath = FileNamePathWorld + FileRecentSubHubLevel;
                 }
                 else
                 {
-                    levelPath = SelectWorld[selWorld].WorldPath + GoToLevel;
+                    levelPath = FileNamePathWorld + GoToLevel;
                     GoToLevel.clear();
                 }
 
@@ -1274,7 +1286,8 @@ int GameMain(const CmdLineSetup_t &setup)
 
                 if(!GoToLevelNoGameThing)
                 {
-                    GameThing(1000, 3);
+                    GameThing(1000 - (g_ShortDelay * 250), 3);
+                    g_ShortDelay = false;
                 }
                 else if(XMessage::GetStatus() != XMessage::Status::replay)
                 {
@@ -1282,6 +1295,8 @@ int GameMain(const CmdLineSetup_t &setup)
                     XRender::clearBuffer();
                     XRender::repaint();
                 }
+
+                GoToLevelNoGameThing = false;
             }
             else
             {
@@ -1420,7 +1435,7 @@ int GameMain(const CmdLineSetup_t &setup)
                         }
 
                         PlayerFrame(p);
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         SoundPause[SFX_Warp] = 0;
                         p.Effect = PLREFF_WAITING;
                         p.Effect2 = 950;
@@ -1432,7 +1447,7 @@ int GameMain(const CmdLineSetup_t &setup)
 //                            .Location.Y = Warp(.Warp).Exit.Y + Warp(.Warp).Exit.Height - .Location.Height
                         p.Location.Y = warp.Exit.Y + warp.Exit.Height - p.Location.Height;
 
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         p.Effect = PLREFF_WAITING;
                         p.Effect2 = 2000;
                     }
@@ -1440,7 +1455,7 @@ int GameMain(const CmdLineSetup_t &setup)
                     {
                         p.Location.X = warp.Exit.X + (warp.Exit.Width - p.Location.Width) / 2;
                         p.Location.Y = warp.Exit.Y + warp.Exit.Height - p.Location.Height;
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         p.WarpCD = 50;
 
                         if(warp.eventExit != EVENT_NONE)
@@ -1552,6 +1567,10 @@ int GameMain(const CmdLineSetup_t &setup)
                     }
                     return false;
                 });
+
+                // Ensure everything is clear
+                GraphicsClearScreen();
+                XEvents::doEvents();
             }
 
             // store to level save info if level won
@@ -1797,19 +1816,23 @@ void NextLevel()
         XEvents::doEvents();
     }
 
-    if(!TestLevel && GoToLevel.empty() && !NoMap)
+    // do an inter-level delay here if there won't be a GameThing later
+    if(!TestLevel && GoToLevel.empty() && !NoMap && FileRecentSubHubLevel.empty())
     {
         if(XMessage::GetStatus() != XMessage::Status::local)
         {
-            for(int i = 0; i < 32; i++)
+            for(int i = 0; i < ((g_ShortDelay) ? 16 : 32); i++)
                 Controls::Update(false);
         }
         else if(!g_config.unlimited_framerate)
-            PGE_Delay(500);
+            PGE_Delay(500 - (g_ShortDelay * 250));
+
+        g_ShortDelay = false;
     }
 
     if(BattleMode && !LevelEditor && !TestLevel)
     {
+        g_ShortDelay = false;
         EndLevel = false;
         GameMenu = true;
         MenuMode = MENU_BATTLE_MODE;
@@ -2185,6 +2208,17 @@ void CheckActive()
     // If LevelEditor = False Then Exit Sub
     while(!XWindow::hasWindowInputFocus())
     {
+        if(!focusLost)
+        {
+            XRender::setTargetTexture();
+            XRender::renderRect(0, 0, XRender::TargetW, XRender::TargetH, {0, 0, 0, 127}, true);
+            SuperPrintScreenCenter(g_gameStrings.screenPaused.empty() ? "Paused" : g_gameStrings.screenPaused, 3, XRender::TargetH / 2);
+            pLogDebug("Window Focus lost");
+            focusLost = true;
+        }
+
+        XRender::repaint();
+
         XEvents::waitEvents();
 //        If LevelEditor = True Or MagicHand = True Then frmLevelWindow.vScreen(1).MousePointer = 0
         SyncSysCursorDisplay();
@@ -2194,12 +2228,6 @@ void CheckActive()
         resetTimeBuffer();
         //keyDownEnter = false;
         //keyDownAlt = false;
-
-        if(!focusLost)
-        {
-            pLogDebug("Window Focus lost");
-            focusLost = true;
-        }
 
 //        if(musicPlaying && !MusicPaused)
 //        {
@@ -2438,6 +2466,7 @@ void StartEpisode()
     Lives = 3;
     LevelSelect = true;
     GameMenu = false;
+    g_ShortDelay = false;
     UpdateInternalRes();
     XRender::setTargetTexture();
     XRender::clearBuffer();
@@ -2454,7 +2483,7 @@ void StartEpisode()
     UnloadCustomSound();
     Archives::unmount_episode();
 
-    std::string wPath = SelectWorld[selWorld].WorldPath + SelectWorld[selWorld].WorldFile;
+    std::string wPath = SelectWorld[selWorld].WorldFilePath;
     std::string recentWorldIntroPrev = g_recentWorldIntro;
     bool doSaveConfig = false;
 
@@ -2541,7 +2570,7 @@ void StartEpisode()
         ClearLevel();
 
         std::string levelName = (FileRecentSubHubLevel.empty() ? StartLevel : FileRecentSubHubLevel);
-        std::string levelPath = SelectWorld[selWorld].WorldPath + levelName;
+        std::string levelPath = FileNamePathWorld + levelName;
 
         levelPath = s_prepare_episode_path(levelPath);
 
@@ -2615,10 +2644,10 @@ void StartBattleMode()
             selWorld = (iRand(NumSelectBattle - 1)) + 2;
     }
 
-    std::string levelPath = SelectBattle[selWorld].WorldPath + SelectBattle[selWorld].WorldFile;
+    const std::string& levelPath = SelectBattle[selWorld].WorldFilePath;
     if(!OpenLevel(levelPath))
     {
-        ReportLoadFailure(SelectBattle[selWorld].WorldFile);
+        ReportLoadFailure(levelPath);
         ErrorQuit = true;
     }
     SetupPlayers();

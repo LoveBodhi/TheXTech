@@ -887,17 +887,6 @@ static std::vector<NPCRef_t> s_NoReset_NPCs_LastFrame;
 // shared between the NPC screen logic functions, always reset to 0 between frames
 static std::bitset<maxNPCs> s_NPC_present;
 
-static inline bool s_NPC_long_life(int Type)
-{
-    return (NPCIsYoshi(Type) || NPCIsBoot(Type) || Type == NPCID_POWER_S3
-        || Type == NPCID_FIRE_POWER_S3 || Type == NPCID_CANNONITEM || Type == NPCID_LIFE_S3
-        || Type == NPCID_POISON || Type == NPCID_STATUE_POWER || Type == NPCID_HEAVY_POWER || Type == NPCID_FIRE_POWER_S1
-        || Type == NPCID_FIRE_POWER_S4 || Type == NPCID_POWER_S1 || Type == NPCID_POWER_S4
-        || Type == NPCID_LIFE_S1 || Type == NPCID_LIFE_S4 || Type == NPCID_3_LIFE || Type == NPCID_FLIPPED_RAINBOW_SHELL
-        || Type == NPCID_PLATFORM_S3 || Type == NPCID_INVINCIBILITY_POWER || Type == NPCID_AQUATIC_POWER
-        || Type == NPCID_POLAR_POWER || Type == NPCID_CYCLONE_POWER || Type == NPCID_SHELL_POWER);
-}
-
 // does the classic ("onscreen") NPC activation / reset logic for vScreen Z, directly based on the many NPC loops of the original game
 void ClassicNPCScreenLogic(int Z, int numScreens, bool fill_draw_queue, NPC_Draw_Queue_t& NPC_Draw_Queue_p)
 {
@@ -1078,7 +1067,8 @@ void ClassicNPCScreenLogic(int Z, int numScreens, bool fill_draw_queue, NPC_Draw
                     NPC[A].JustActivated = static_cast<uint8_t>(Z);
 
                 NPC[A].TimeLeft = Physics.NPCTimeOffScreen;
-                if(check_long_life && s_NPC_long_life(NPC[A].Type))
+                // NPCID_PLATFORM_S3 was checked here but not in BlockHit, so it's not included in the global trait
+                if(check_long_life && (NPCLongLife(NPC[A].Type) || NPC[A].Type == NPCID_PLATFORM_S3))
                     NPC[A].TimeLeft = Physics.NPCTimeOffScreen * 20;
 
                 if(!NPC[A].Active)
@@ -1260,8 +1250,6 @@ void ModernNPCScreenLogic(Screen_t& screen, int vscreen_i, bool fill_draw_queue,
                     || (loc2_exists && vScreenCollision(c_Z2, loc2)));
             }
 
-            cannot_reset = (render || onscreen_canonical);
-
             // Possible situations where we need to activate as original:
             if(
                    ForcedControls
@@ -1273,6 +1261,20 @@ void ModernNPCScreenLogic(Screen_t& screen, int vscreen_i, bool fill_draw_queue,
                 can_activate = onscreen_canonical;
             else
                 can_activate = render;
+
+            // normally, don't reset anything that would be capable of activating
+            cannot_reset = (can_activate || onscreen_canonical);
+
+            // if it will look different after resetting, don't reset it
+            if(!cannot_reset && render &&
+                    (!NPC_InactiveRender(NPC[A])
+                        || num_t::floor(NPC[A].Location.X) != num_t::floor(NPC[A].DefaultLocationX)
+                        || num_t::floor(NPC[A].Location.Y) != num_t::floor(NPC[A].DefaultLocationY)
+                    )
+                )
+            {
+                cannot_reset = true;
+            }
         }
 
         if(NPC[A].Generator)
@@ -1362,10 +1364,6 @@ void ModernNPCScreenLogic(Screen_t& screen, int vscreen_i, bool fill_draw_queue,
             }
         }
 
-        // TODO: experiment with allowing resetting NPCs that are onscreen, cannot activate, and are not rendered
-        // if(!can_activate && !render && onscreen)
-        //     cannot_reset = false;
-
         // activate the NPC if allowed
         if(can_activate)
         {
@@ -1399,7 +1397,8 @@ void ModernNPCScreenLogic(Screen_t& screen, int vscreen_i, bool fill_draw_queue,
             // update TimeLeft (despawn timer) if active and in the no-reset zone
             if(NPC[A].Active)
             {
-                if(s_NPC_long_life(NPC[A].Type))
+                // NPCID_PLATFORM_S3 was checked here but not in BlockHit, so it's not included in the global trait
+                if(NPCLongLife(NPC[A].Type) || NPC[A].Type == NPCID_PLATFORM_S3)
                     NPC[A].TimeLeft = Physics.NPCTimeOffScreen * 20;
                 else
                     NPC[A].TimeLeft = Physics.NPCTimeOffScreen;
@@ -1430,7 +1429,7 @@ void ModernNPCScreenLogic(Screen_t& screen, int vscreen_i, bool fill_draw_queue,
         if(hp_door_scroll)
             render = false;
 
-        if(fill_draw_queue && render && (NPC[A].Reset[2] || NPC[A].Active || NPC[A].Type == NPCID_CONVEYOR))
+        if(fill_draw_queue && render && (NPC[A].Reset[2] || NPC[A].Active || !cannot_reset))
         {
             NPC_Draw_Queue_p.add(A);
 
@@ -1467,6 +1466,18 @@ void UpdateGraphicsScreen(Screen_t& screen);
 
 //! extra non-gameplay related draws (menus and information display)
 void UpdateGraphicsMeta();
+
+void GraphicsClearScreen()
+{
+    if(!GameIsActive)
+        return;
+
+    XRender::setTargetTexture();
+    XRender::resetViewport();
+    XRender::setDrawPlane(PLANE_GAME_BACKDROP);
+    XRender::clearBuffer();
+    XRender::repaint();
+}
 
 // This draws the graphic to the screen when in a level/game menu/outro/level editor
 void UpdateGraphics(bool skipRepaint)
@@ -2028,24 +2039,29 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size(); nextBackground++) // First backgrounds
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
 
                 if(A > numBackground)
                     break;
 
-                if(Background[A].SortPriority >= Background_t::PRI_NORM_START)
+                if(bgo.SortPriority >= Background_t::PRI_NORM_START)
                     break;
 
                 g_stats.checkedBGOs++;
-                if(vScreenCollision(Z, Background[A].Location) && !Background[A].Hidden)
+                if(vScreenCollision(Z, bgo.Location) && !bgo.Hidden)
                 {
                     g_stats.renderedBGOs++;
-                    XRender::renderTextureBasic(camX + s_round2int(Background[A].Location.X),
-                                          camY + s_round2int(Background[A].Location.Y),
-                                          GFXBackground[Background[A].Type].w,
-                                          BackgroundHeight[Background[A].Type],
-                                          GFXBackgroundBMP[Background[A].Type], 0,
-                                          BackgroundHeight[Background[A].Type] *
-                                          BackgroundFrame[Background[A].Type]);
+
+                    auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                    const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
+
+                    XRender::renderTextureBasic(camX + s_round2int(bgo.Location.X),
+                                          camY + s_round2int(bgo.Location.Y),
+                                          bgoGfx.w,
+                                          bgoHeight,
+                                          bgoGfx, 0,
+                                          bgoHeight * bgoFrame);
                 }
             }
         }
@@ -2055,29 +2071,35 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size() && (int)screenBackgrounds[nextBackground] < MidBackground; nextBackground++)  // First backgrounds
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
+
                 g_stats.checkedBGOs++;
 
-                if(Background[A].Hidden)
+                if(bgo.Hidden)
                     continue;
 
-                int sX = camX + s_round2int(Background[A].Location.X);
+                int sX = camX + s_round2int(bgo.Location.X);
                 if(sX > vScreen[Z].Width)
                     continue;
 
-                int sY = camY + s_round2int(Background[A].Location.Y);
+                int sY = camY + s_round2int(bgo.Location.Y);
                 if(sY > vScreen[Z].Height)
                     continue;
 
-                if(sX + GFXBackground[Background[A].Type].w >= 0 && sY + BackgroundHeight[Background[A].Type] >= 0 /*&& !Background[A].Hidden*/)
+                auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+
+                if(sX + bgoGfx.w >= 0 && sY + bgoHeight >= 0 /*&& !bgo.Hidden*/)
                 {
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
                     g_stats.renderedBGOs++;
                     XRender::renderTextureBasic(sX,
                                           sY,
-                                          GFXBackground[Background[A].Type].w,
-                                          BackgroundHeight[Background[A].Type],
-                                          GFXBackgroundBMP[Background[A].Type],
+                                          bgoGfx.w,
+                                          bgoHeight,
+                                          bgoGfx,
                                           0,
-                                          BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+                                          bgoHeight * bgoFrame);
                 }
             }
         }
@@ -2110,23 +2132,29 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size(); nextBackground++)  // Second backgrounds
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
 
                 if(A > numBackground)
                     break;
 
-                if(Background[A].SortPriority >= Background_t::PRI_FG_START)
+                if(bgo.SortPriority >= Background_t::PRI_FG_START)
                     break;
 
                 g_stats.checkedBGOs++;
-                if(vScreenCollision(Z, Background[A].Location) && !Background[A].Hidden)
+                if(vScreenCollision(Z, bgo.Location) && !bgo.Hidden)
                 {
                     g_stats.renderedBGOs++;
-                    XRender::renderTextureBasic(camX + s_round2int(Background[A].Location.X),
-                                          camY + s_round2int(Background[A].Location.Y),
-                                          GFXBackground[Background[A].Type].w,
-                                          BackgroundHeight[Background[A].Type],
-                                          GFXBackgroundBMP[Background[A].Type], 0,
-                                          BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+
+                    auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                    const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
+
+                    XRender::renderTextureBasic(camX + s_round2int(bgo.Location.X),
+                                          camY + s_round2int(bgo.Location.Y),
+                                          bgoGfx.w,
+                                          bgoHeight,
+                                          bgoGfx, 0,
+                                          bgoHeight * bgoFrame);
                 }
             }
         }
@@ -2135,29 +2163,36 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size() && (int)screenBackgrounds[nextBackground] <= LastBackground; nextBackground++)  // Second backgrounds
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
 
                 g_stats.checkedBGOs++;
 
-                if(Background[A].Hidden)
+                if(bgo.Hidden)
                     continue;
 
-                int sX = camX + s_round2int(Background[A].Location.X);
+                int sX = camX + s_round2int(bgo.Location.X);
                 if(sX > vScreen[Z].Width)
                     continue;
 
-                int sY = camY + s_round2int(Background[A].Location.Y);
+                int sY = camY + s_round2int(bgo.Location.Y);
                 if(sY > vScreen[Z].Height)
                     continue;
 
-                if(sX + BackgroundWidth[Background[A].Type] >= 0 && sY + BackgroundHeight[Background[A].Type] >= 0 /*&& !Background[A].Hidden*/)
+                const vbint_t bgoWidth = BackgroundWidth[bgo.Type];
+                const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+
+                if(sX + bgoWidth >= 0 && sY + bgoHeight >= 0 /*&& !bgo.Hidden*/)
                 {
+                    auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
+
                     g_stats.renderedBGOs++;
                     XRender::renderTextureBasic(sX,
                                           sY,
-                                          BackgroundWidth[Background[A].Type],
-                                          BackgroundHeight[Background[A].Type],
-                                          GFXBackgroundBMP[Background[A].Type],
-                                          0, BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+                                          bgoWidth,
+                                          bgoHeight,
+                                          bgoGfx,
+                                          0, bgoHeight * bgoFrame);
                 }
             }
         }
@@ -2165,28 +2200,34 @@ void UpdateGraphicsScreen(Screen_t& screen)
         for(int oBackground = (int)screenBackgrounds.size() - 1; oBackground > 0 && (int)screenBackgrounds[oBackground] > numBackground; oBackground--)  // Locked doors
         {
             int A = screenBackgrounds[oBackground];
+            const auto &bgo = Background[A];
 
             g_stats.checkedBGOs++;
 
-            if(Background[A].Hidden || !(Background[A].Type == 98 || Background[A].Type == 160))
+            if(bgo.Hidden || !(bgo.Type == 98 || bgo.Type == 160))
                 continue;
 
-            int sX = camX + s_round2int(Background[A].Location.X);
+            int sX = camX + s_round2int(bgo.Location.X);
             if(sX > vScreen[Z].Width)
                 continue;
 
-            int sY = camY + s_round2int(Background[A].Location.Y);
+            int sY = camY + s_round2int(bgo.Location.Y);
             if(sY > vScreen[Z].Height)
                 continue;
 
-            if(sX + BackgroundWidth[Background[A].Type] >= 0 && sY + BackgroundHeight[Background[A].Type] >= 0)
+            const vbint_t bgoWidth = BackgroundWidth[bgo.Type];
+            const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+
+            if(sX + bgoWidth >= 0 && sY + bgoHeight >= 0)
             {
+                auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
                 g_stats.renderedBGOs++;
                 XRender::renderTextureBasic(sX,
                                       sY,
-                                      BackgroundWidth[Background[A].Type], BackgroundHeight[Background[A].Type],
-                                      GFXBackgroundBMP[Background[A].Type],
-                                      0, BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+                                      bgoWidth, bgoHeight,
+                                      bgoGfx,
+                                      0, bgoHeight * bgoFrame);
             }
         }
 
@@ -2242,7 +2283,7 @@ void UpdateGraphicsScreen(Screen_t& screen)
                 }
             }
             else if(NPC[A].Type == NPCID_ICE_CUBE)
-                DrawFrozenNPC(Z, A);
+                DrawFrozenNPC(camX, camY, A);
             // fix a graphical SMBX64 bug where the draw width and frame stride were incorrect
             else if(NPC[A]->WidthGFX != 0 && NPC[A].Effect == NPCEFF_EMERGE_UP && g_config.fix_visual_bugs)
             {
@@ -2528,13 +2569,25 @@ void UpdateGraphicsScreen(Screen_t& screen)
                 if(sX + bw >= 0 && sY + bh >= 0 /*&& !block.Hidden*/)
                 {
                     g_stats.renderedBlocks++;
+                    XTColor cb;
+
+#ifdef THEXTECH_ENABLE_SDL_NET
+                    if(block.RespawnDelay_ScreensLeft && !BattleMode)
+                    {
+                        uint16_t screen_index = (&screen - &Screens[0]);
+                        if((block.RespawnDelay_ScreensLeft & (1U << screen_index)) == 0)
+                            cb = XTColor(127, 127, 127);
+                    }
+#endif
+
                     XRender::renderTextureBasic(sX,
                                           sY + block.ShakeOffset,
                                           bw,
                                           bh,
                                           GFXBlock[block.Type],
                                           0,
-                                          BlockFrame[block.Type] * bh);
+                                          BlockFrame[block.Type] * bh,
+                                          cb);
                     // BlockFrame * bh was previously BlockFrame * 32
                     // This change is needed for converted conveyor blocks
                     // It may be reverted in the future
@@ -2623,7 +2676,7 @@ void UpdateGraphicsScreen(Screen_t& screen)
         for(size_t i = 0; i < NPC_Draw_Queue_p.Iced_n; i++)
         {
             int A = NPC_Draw_Queue_p.Iced[i];
-            DrawFrozenNPC(Z, A);
+            DrawFrozenNPC(camX, camY, A);
         }
 
 
@@ -2913,7 +2966,7 @@ void UpdateGraphicsScreen(Screen_t& screen)
 
             if(NPC[A].Type == NPCID_ICE_CUBE)
             {
-                DrawFrozenNPC(Z, A);
+                DrawFrozenNPC(camX, camY, A);
             }
             else if(!NPCIsYoshi(NPC[A]) && NPC[A].Type > 0)
             {
@@ -2972,20 +3025,24 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size(); nextBackground++)  // Foreground objects
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
 
                 if(A > numBackground)
                     continue;
 
                 g_stats.checkedBGOs++;
-                if(vScreenCollision(Z, Background[A].Location) && !Background[A].Hidden)
+                if(vScreenCollision(Z, bgo.Location) && !bgo.Hidden)
                 {
+                    auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                    const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
                     g_stats.renderedBGOs++;
-                    XRender::renderTextureBasic(camX + s_round2int(Background[A].Location.X),
-                                          camY + s_round2int(Background[A].Location.Y),
-                                          GFXBackground[Background[A].Type].w,
-                                          BackgroundHeight[Background[A].Type],
-                                          GFXBackgroundBMP[Background[A].Type], 0,
-                                          BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+                    XRender::renderTextureBasic(camX + s_round2int(bgo.Location.X),
+                                          camY + s_round2int(bgo.Location.Y),
+                                          bgoGfx.w,
+                                          bgoHeight,
+                                          bgoGfx, 0,
+                                          bgoHeight * bgoFrame);
                 }
             }
         }
@@ -2994,24 +3051,33 @@ void UpdateGraphicsScreen(Screen_t& screen)
             for(; nextBackground < (int)screenBackgrounds.size() && (int)screenBackgrounds[nextBackground] <= numBackground; nextBackground++)  // Foreground objects
             {
                 int A = screenBackgrounds[nextBackground];
+                const auto &bgo = Background[A];
 
                 g_stats.checkedBGOs++;
 
-                if(Background[A].Hidden)
+                if(bgo.Hidden)
                     continue;
 
-                int sX = camX + s_round2int(Background[A].Location.X);
+                int sX = camX + s_round2int(bgo.Location.X);
                 if(sX > vScreen[Z].Width)
                     continue;
 
-                int sY = camY + s_round2int(Background[A].Location.Y);
+                int sY = camY + s_round2int(bgo.Location.Y);
                 if(sY > vScreen[Z].Height)
                     continue;
 
-                if(sX + GFXBackground[Background[A].Type].w >= 0 && sY + BackgroundHeight[Background[A].Type] >= 0 /*&& !Background[A].Hidden*/)
+                auto &bgoGfx = GFXBackgroundBMP[bgo.Type];
+                const vbint_t bgoHeight = BackgroundHeight[bgo.Type];
+
+                if(sX + bgoGfx.w >= 0 && sY + bgoHeight >= 0 /*&& !bgo.Hidden*/)
                 {
                     g_stats.renderedBGOs++;
-                    XRender::renderTextureBasic(sX, sY, GFXBackground[Background[A].Type].w, BackgroundHeight[Background[A].Type], GFXBackground[Background[A].Type], 0, BackgroundHeight[Background[A].Type] * BackgroundFrame[Background[A].Type]);
+                    const vbint_t bgoFrame = BackgroundFrame[bgo.Type];
+                    XRender::renderTextureBasic(sX, sY,
+                                                bgoGfx.w,
+                                                bgoHeight,
+                                                bgoGfx, 0,
+                                                bgoHeight * bgoFrame);
                 }
             }
         }

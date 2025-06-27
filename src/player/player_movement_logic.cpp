@@ -998,7 +998,7 @@ void PlayerMovementY(int A)
                 Player[A].Location.SpeedY += Physics.PlayerGravity;
 
             bool has_fly_block = (Player[A].HoldingNPC > 0) && (NPC[Player[A].HoldingNPC].Type == NPCID_FLY_BLOCK || NPC[Player[A].HoldingNPC].Type == NPCID_FLY_CANNON);
-            bool no_cyclone_glide = (Player[A].Location.SpeedY >= 0) && (Player[A].Mount || Player[A].HoldingNPC); // glide down in cases where player can't cyclone
+            bool no_cyclone_glide = (Player[A].Location.SpeedY >= 0) && (Player[A].Mount || Player[A].HoldingNPC) && !Player[A].GroundPound; // glide down in cases where player can't cyclone
 
             if(has_fly_block || (Player[A].State == PLR_STATE_CYCLONE && (!Player[A].DoubleJump || no_cyclone_glide)))
             {
@@ -1316,13 +1316,48 @@ void PlayerAquaticSwimMovement(int A)
     int rate_x = rate / 2;
     int rate_y = rate / 2;
 
-    int new_swim_dir = (Player[A].Direction > 0) ? MAZE_DIR_RIGHT : MAZE_DIR_LEFT;
+    int old_swim_dir = (Player[A].Direction > 0) ? MAZE_DIR_RIGHT : MAZE_DIR_LEFT;
 
     // keep old direction if present
     if(Player[A].Frame == 19 || Player[A].Frame == 20 || Player[A].Frame == 21)
-        new_swim_dir = MAZE_DIR_DOWN;
+        old_swim_dir = MAZE_DIR_DOWN;
     else if(Player[A].Frame == 40 || Player[A].Frame == 41 || Player[A].Frame == 42)
+        old_swim_dir = MAZE_DIR_UP;
+
+    int new_swim_dir = old_swim_dir;
+
+    if((Player[A].Controls.Up && current_swim_dir != MAZE_DIR_DOWN) || current_swim_dir == MAZE_DIR_UP)
+    {
         new_swim_dir = MAZE_DIR_UP;
+        target_speed_y = -target_speed;
+
+        if(Player[A].Location.SpeedY < 0)
+            rate_y = rate;
+        else
+            rate_y = rate * 2;
+
+        if(current_swim_dir == MAZE_DIR_UP)
+        {
+            target_speed_y -= base_speed;
+            rate_y *= 2;
+        }
+    }
+    else if(Player[A].Controls.Down || current_swim_dir == MAZE_DIR_DOWN)
+    {
+        new_swim_dir = MAZE_DIR_DOWN;
+        target_speed_y = target_speed;
+
+        if(Player[A].Location.SpeedY > 0)
+            rate_y = rate;
+        else
+            rate_y = rate * 2;
+
+        if(current_swim_dir == MAZE_DIR_DOWN)
+        {
+            target_speed_y += base_speed;
+            rate_y *= 2;
+        }
+    }
 
     if((Player[A].Controls.Left && current_swim_dir != MAZE_DIR_RIGHT) || current_swim_dir == MAZE_DIR_LEFT)
     {
@@ -1361,38 +1396,9 @@ void PlayerAquaticSwimMovement(int A)
         Player[A].Direction = 1;
     }
 
-    if((Player[A].Controls.Up && current_swim_dir != MAZE_DIR_DOWN) || current_swim_dir == MAZE_DIR_UP)
-    {
-        new_swim_dir = MAZE_DIR_UP;
-        target_speed_y = -target_speed;
-
-        if(Player[A].Location.SpeedY < 0)
-            rate_y = rate;
-        else
-            rate_y = rate * 2;
-
-        if(current_swim_dir == MAZE_DIR_UP)
-        {
-            target_speed_y -= base_speed;
-            rate_y *= 2;
-        }
-    }
-    else if(Player[A].Controls.Down || current_swim_dir == MAZE_DIR_DOWN)
-    {
-        new_swim_dir = MAZE_DIR_DOWN;
-        target_speed_y = target_speed;
-
-        if(Player[A].Location.SpeedY > 0)
-            rate_y = rate;
-        else
-            rate_y = rate * 2;
-
-        if(current_swim_dir == MAZE_DIR_DOWN)
-        {
-            target_speed_y += base_speed;
-            rate_y *= 2;
-        }
-    }
+    // interrupt animation when the swim dir changes
+    if(new_swim_dir != old_swim_dir)
+        Player[A].FrameCount = 0;
 
     // go a bit slower vertically
     target_speed_y = target_speed_y * 3 / 4;
@@ -1478,10 +1484,13 @@ void PlayerMazeZoneMovement(int A)
 
 void PlayerFlagSlideMovement(int A)
 {
+    Player[A].Location.SpeedX = 0;
+
     // have we hit the ground yet?
-    if(Player[A].Location.SpeedY == 0)
+    if(Player[A].Location.SpeedY == 0 || Player[A].StandingOnNPC)
     {
-        LevelMacroWhich = 0;
+        // this results in waiting 16 frames after hitting the ground
+        LevelMacroWhich++;
     }
     else
     {

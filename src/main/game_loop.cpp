@@ -92,28 +92,35 @@ void updateScreenFaders()
         g_levelVScreenFader[s].update();
 }
 
-#if 0
-void levelWaitForFade()
+void levelWaitForFade(int waitTicks)
 {
-    while(!g_levelScreenFader.isComplete() && GameIsActive)
+    while(waitTicks >= 0 && GameIsActive)
     {
         XEvents::doEvents();
 
         if(canProceedFrame())
         {
             computeFrameTime1();
+            Controls::Update(false);
             UpdateGraphicsDraw();
             UpdateSound();
             XEvents::doEvents();
             computeFrameTime2();
             updateScreenFaders();
+            waitTicks--;
         }
 
         if(!g_config.unlimited_framerate)
             PGE_Delay(1);
     }
+
+    // Ensure everything is clear
+    if(GameIsActive)
+    {
+        XEvents::doEvents();
+        GraphicsClearScreen();
+    }
 }
-#endif
 
 void editorWaitForFade()
 {
@@ -375,7 +382,7 @@ resume_UpdateEvents:
         updateScreenFaders();
 
         // Pause game and CaptainN logic
-        if(LevelMacro == LEVELMACRO_OFF && CheckLiving() > 0)
+        if((LevelMacro == LEVELMACRO_OFF && CheckLiving() > 0) || SharedPauseForce)
         {
             // this is always able to pause the game even when CaptainN is enabled.
             if(SharedPause)
@@ -485,6 +492,13 @@ bool MessageScreen_Logic(int plr)
     // can't check other local shared controls because this is global logic
     bool menuDoPress = SharedPause;
     bool menuBackPress = false;
+
+    if(GameMenu)
+    {
+        bool clicked = (SharedCursor.Primary || SharedCursor.Secondary);
+        menuDoPress |= clicked;
+        MenuMouseRelease = !clicked;
+    }
 
     // there was previously code to copy all players' controls from the main player, but this is no longer necessary (and actively harmful in the SingleCoop case)
 

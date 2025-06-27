@@ -140,7 +140,7 @@ endif()
 #endif()
 set(USE_SYSTEM_LIBS_DEFAULT OFF)
 
-if(HAIKU OR VITA OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_WIIU OR XTECH_MACOSX_TIGER OR PORTMASTER)
+if(HAIKU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_WIIU OR XTECH_MACOSX_TIGER OR PORTMASTER)
     set(USE_SYSTEM_SDL2_DEFAULT ON)  # Should be used on Haiku, own SDL2 Haiku build on CMake is broken
 else()
     set(USE_SYSTEM_SDL2_DEFAULT ${USE_SYSTEM_LIBS_DEFAULT})
@@ -672,9 +672,13 @@ if(NINTENDO_DS AND CALICO_ROOT)
 endif()
 
 add_subdirectory(3rdparty/mbediso EXCLUDE_FROM_ALL)
-if(NOT USE_SYSTEM_SDL2 AND NOT THEXTECH_NO_SDL_BUILD)
-    target_include_directories(mbediso PRIVATE "${DEPENDENCIES_INSTALL_DIR}/include")
-    add_dependencies(mbediso AudioCodecs_Local)
+if(NOT THEXTECH_NO_SDL_BUILD)
+    if(NOT USE_SYSTEM_SDL2)
+        target_include_directories(mbediso PRIVATE "${DEPENDENCIES_INSTALL_DIR}/include")
+        add_dependencies(mbediso AudioCodecs_Local)
+    else()
+        target_include_directories(mbediso PRIVATE "${SDL2_INCLUDE_DIRS}")
+    endif()
 endif()
 target_link_libraries(A2XT_Int INTERFACE mbediso)
 target_compile_definitions(A2XT_Int INTERFACE
@@ -846,6 +850,7 @@ set(THEXTECH_SRC
     src/main/screen_textentry.cpp
     src/main/screen_prompt.cpp
     src/main/screen_progress.cpp
+    src/main/screen_content.cpp
     src/main/hints.cpp
     src/main/game_strings.cpp
     src/main/translate.cpp
@@ -883,6 +888,7 @@ set(THEXTECH_SRC
     src/collision.cpp
     src/load_gfx.cpp
     src/layers.cpp
+    src/saved_layers.cpp
     src/custom.cpp
     src/graphics.cpp
     src/main.cpp

@@ -46,6 +46,10 @@ void initGameStrings()
     g_gameStrings.messageScanningLevels = "Scanning levels...";
     g_gameStrings.formatMinutesSeconds = "{0}m{1}s";
 
+#if !defined(NO_WINDOW_FOCUS_TRACKING) && !defined(THEXTECH_DISABLE_LANG_TOOLS)
+    g_gameStrings.screenPaused = "Paused";
+#endif
+
     g_gameStrings.warpNeedStarCount = "You need {0} {1} to enter.";
 
     g_gameStrings.pauseItemContinue = "Continue";

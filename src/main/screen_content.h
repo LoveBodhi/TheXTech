@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2024 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,23 +19,25 @@
  */
 
 #pragma once
-#ifndef GAME_GLOBALS_H
-#define GAME_GLOBALS_H
 
-#include "screen.h"
-#include "../screen_fader.h"
-#include "../range_arr.hpp"
+#ifndef SCREEN_CONTENT_H
+#define SCREEN_CONTENT_H
 
-extern ScreenFader g_levelScreenFader;
-extern RangeArr<ScreenFader, 0, c_vScreenCount> g_levelVScreenFader;
+namespace ContentSelectScreen
+{
 
-// delay following current level should be shortened by 16 frames / 250 milliseconds,
-// because current level ended with the fade out from an offscreen exit
-extern bool g_ShortDelay;
+extern bool editor_target_thextech;
 
-extern void clearScreenFaders();
-extern void updateScreenFaders();
-extern void levelWaitForFade(int waitTicks); // wait waitTicks frames for the fader (or no-fader) to finish
-extern void editorWaitForFade();
+void Prepare();
 
-#endif // GAME_GLOBALS_H
+void Render();
+
+// return values:
+// -1 back
+// 0 continue
+// 1 next
+int Logic();
+
+} // namespace ContentSelectScreen
+
+#endif // SCREEN_CONTENT_H

@@ -39,6 +39,7 @@
 #include "../sound.h"
 #include "../sorting.h"
 #include "../layers.h"
+#include "saved_layers.h"
 #include "config.h"
 #include "../graphics.h"
 #include "../editor.h"
@@ -906,8 +907,6 @@ bool OpenLevel_NPC(void* userdata, LevelNPC& n)
 
         auto &npc = NPC[numNPCs];
 
-        npc = NPC_t();
-
         npc.Location.X = n.x;
         npc.Location.Y = n.y;
         if(!LevelEditor)
@@ -1526,6 +1525,10 @@ void OpenLevelDataPost()
                     NPC[numNPCs_new] = NPC[A];
             }
 
+            // clear the deleted NPCs (prevents NPC index shenanigans)
+            for(int A = numNPCs_new + 1; A <= numNPCs; A++)
+                NPC[A] = NPC_t();
+
             numNPCs = numNPCs_new;
         }
 
@@ -1556,6 +1559,19 @@ void OpenLevelDataPost()
 
     for(int A = 0; A < numLayers; A++)
     {
+        // check if layer is a saved layer
+        for(int i = 0; i < numSavedLayers; i++)
+        {
+            if(SDL_strcasecmp(Layer[A].Name.c_str(), SavedLayers[i].Name.data()) == 0)
+            {
+                Layer[A].SavedLayer = i + 1;
+                if(!LevelEditor)
+                    Layer[A].Hidden = !SavedLayers[i].Visible;
+                break;
+            }
+        }
+
+        // hide layer if needed
         if(Layer[A].Hidden)
             HideLayer(A, true);
     }

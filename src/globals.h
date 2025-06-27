@@ -903,7 +903,8 @@ struct Block_t
 //    Slippy As Boolean
     bool Slippy = false;
 //    RespawnDelay As Integer
-    vbint_t RespawnDelay = 0;
+    // Newly re-used to represent which screens can still hit the block (outside of Battle Mode)
+    uint16_t RespawnDelay_ScreensLeft = 0;
 //    RapidHit As Integer
     vbint_t RapidHit = 0;
 //    DefaultType As Integer
@@ -1437,30 +1438,7 @@ extern bool g_forceCharacter;
 //Public blockCharacter(0 To 20) As Boolean
 extern RangeArrI<bool, 0, 20, false> blockCharacter;
 
-//Public Type SelectWorld
-struct SelectWorld_t
-{
-//    WorldName As String
-    std::string WorldName;
-//    WorldPath As String
-    std::string WorldPath;
-//    WorldFile As String
-    std::string WorldFile;
-//    blockChar(1 To numCharacters) As Boolean
-    RangeArrI<bool, 1, numCharacters, false> blockChar;
-// EXTRA:
-    bool bugfixes_on_by_default = false;
-    bool editable = false;
-    bool highlight = false;
-    bool disabled = false;
-    bool probably_incompatible = false;
-
-#ifdef THEXTECH_ENABLE_SDL_NET
-    // content hash of packed episode
-    uint32_t lz4_content_hash = 0;
-#endif
-//End Type
-};
+struct SelectWorld_t; // moved to main_menu.h
 
 //Public OwedMount(0 To maxPlayers) As Integer 'when a yoshi/boot is taken from the player this returns after going back to the world map
 extern RangeArrI<vbint_t, 0, maxPlayers, 0> OwedMount;
@@ -1894,6 +1872,7 @@ extern EditorControls_t EditorControls;
 
 extern bool SharedPause;
 extern bool SharedPauseLegacy;
+extern bool SharedPauseForce;
 
 // extern RangeArr<CursorControls_t, 1, maxLocalPlayers> PlayerCursor;
 
@@ -2109,11 +2088,11 @@ extern bool BeatTheGame;
 //extern double overTime;
 //'------------------
 //Public worldCurs As Integer
-extern int worldCurs;
+// extern int worldCurs;
 //Public minShow As Integer
-extern int minShow;
+// extern int minShow;
 //Public maxShow As Integer
-extern int maxShow;
+// extern int maxShow;
 
 //Public Type Physics
 struct Physics_t

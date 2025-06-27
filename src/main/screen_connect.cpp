@@ -24,6 +24,15 @@
 #include "main/game_strings.h"
 #include "main/speedrunner.h"
 
+#include "control/controls_methods.h" // to cancel keyboard's double-click fullscreen
+
+static inline void s_cancelDoubleClick()
+{
+#ifdef KEYBOARD_H
+    Controls::g_cancelDoubleClick = true;
+#endif
+}
+
 namespace ConnectScreen
 {
 
@@ -242,11 +251,18 @@ static void s_logRecentChars()
     // reset recent chars to 0
     s_recent_char = {};
 
-    // update
-    for(int i = 0; i < maxLocalPlayers; i++)
+    // update recent characters
+    for(size_t i = 0; i < maxLocalPlayers; i++)
     {
         if(s_players[i].m_state != PlayerState::Disconnected)
             s_recent_char[i] = l_screen->charSelect[i];
+    }
+
+    // mark input methods as used
+    for(Controls::InputMethod* method : Controls::g_InputMethods)
+    {
+        if(method)
+            method->used_for_player = true;
     }
 
     // if controls dirty, save them
@@ -386,7 +402,7 @@ void MainMenu_Start(int minPlayers)
     for(int i = 0; i < maxLocalPlayers; i++)
         l_screen->charSelect[i] = 0;
 
-    if(!(g_forceCharacter && SelectWorld[selWorld].highlight && SelectWorld[selWorld].blockChar[s_recent_char[0]]))
+    if(!(g_forceCharacter && SelectWorld[selWorld].blockChar[s_recent_char[0]]))
         s_InitBlockCharacter();
 
     for(int i = 0; i < maxLocalPlayers; i++)
@@ -1225,6 +1241,7 @@ bool PlayerBox::MouseItem(int i)
 
     if(MenuMouseRelease && SharedCursor.Primary)
     {
+        s_cancelDoubleClick();
         MenuMouseRelease = false;
         return Do();
     }
@@ -1698,6 +1715,7 @@ int PlayerBox::Mouse_Render(bool render, int x, int y, int w, int h)
 
             if(MenuMouseRelease && SharedCursor.Primary)
             {
+                s_cancelDoubleClick();
                 MenuMouseRelease = false;
                 return Do();
             }

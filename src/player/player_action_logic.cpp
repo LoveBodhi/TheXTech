@@ -158,7 +158,6 @@ void PlayerShootChar5Beam(int A)
         PlaySoundSpatial(SFX_HeroFireRod, Player[A].Location);
 
     numNPCs++;
-    NPC[numNPCs] = NPC_t();
 
     if(ShadowMode)
         NPC[numNPCs].Shadow = true;
@@ -225,7 +224,6 @@ void PlayerThrowBomb(int A)
     p.Bombs -= 1;
 
     numNPCs++;
-    NPC[numNPCs] = NPC_t();
     NPC[numNPCs].Active = true;
     NPC[numNPCs].TimeLeft = Physics.NPCTimeOffScreen;
     NPC[numNPCs].Section = p.Section;
@@ -296,7 +294,6 @@ void PlayerThrowHeavy(const int A)
     p.FireBallCD = 25;
 
     numNPCs++;
-    NPC[numNPCs] = NPC_t();
     NPC[numNPCs].Type = NPCID_PLR_HEAVY;
     if(ShadowMode)
         NPC[numNPCs].Shadow = true;
@@ -402,11 +399,7 @@ void PlayerThrowBall(const int A)
     if(numNPCs >= maxNPCs - 100)
         return;
 
-    if(!p.SpinJump && !p.AquaticSwim)
-        p.FrameCount = 110;
-
     numNPCs++;
-    NPC[numNPCs] = NPC_t();
     NPC[numNPCs].Type = NPCID_PLR_FIREBALL;
 
     bool throw_ice = (p.State == PLR_STATE_ICE || p.State == PLR_STATE_POLAR);
@@ -452,26 +445,32 @@ void PlayerThrowBall(const int A)
     if(p.Character == 4)
         p.FireBallCD = 25;
 
-    NPC[numNPCs].Location.SpeedX = 5 * p.Direction + (p.Location.SpeedX) / 3.5_ri;
+    if(p.State == PLR_STATE_POLAR && p.Slippy)
+        p.FireBallCD -= 5;
+
+    bool throw_up = p.Controls.Up;
+    int throw_dir = p.Direction;
+
+    NPC[numNPCs].Location.SpeedX = 5 * throw_dir + (p.Location.SpeedX) / 3.5_ri;
 
     if(throw_ice)
     {
         PlaySoundSpatial(SFX_Iceball, p.Location);
 
-        NPC[numNPCs].Location.SpeedY = (p.Controls.Up) ? -8 : 5;
+        NPC[numNPCs].Location.SpeedY = (throw_up) ? -8 : 5;
         NPC[numNPCs].Location.SpeedX = NPC[numNPCs].Location.SpeedX * 0.8_r;
     }
     else
     {
         PlaySoundSpatial(SFX_Fireball, p.Location);
 
-        NPC[numNPCs].Location.SpeedY = (p.Controls.Up) ? -6 : 20;
+        NPC[numNPCs].Location.SpeedY = (throw_up) ? -6 : 20;
 
         if(NPC[numNPCs].Special == 2)
             NPC[numNPCs].Location.SpeedX = NPC[numNPCs].Location.SpeedX * 0.85_r;
     }
 
-    if(p.Controls.Up)
+    if(throw_up)
     {
         if(p.StandingOnNPC != 0)
             NPC[numNPCs].Location.SpeedY += NPC[p.StandingOnNPC].Location.SpeedY / 10;
@@ -489,6 +488,63 @@ void PlayerThrowBall(const int A)
 
     if(p.StandingOnNPC != 0)
         NPC[numNPCs].Location.SpeedX = 5 * p.Direction + (p.Location.SpeedX + NPC[p.StandingOnNPC].Location.SpeedX) / 3.5_ri;
+
+    // special speed and animation code for polar swimming
+    if(p.AquaticSwim)
+    {
+        // player animation code
+        p.FireBallCD -= 10;
+
+        int plr_frame = 16;
+
+        if(p.Controls.Left || p.Controls.Right)
+        {
+            // use left/right frame
+        }
+        else if((p.Controls.Down && !p.Controls.Up) || Player[A].Frame == 19 || Player[A].Frame == 20 || Player[A].Frame == 21)
+            plr_frame = 19;
+        else if(p.Controls.Up || Player[A].Frame == 40 || Player[A].Frame == 41 || Player[A].Frame == 42)
+        {
+            throw_up = true;
+            plr_frame = 40;
+        }
+
+        if(!p.SwimCount)
+        {
+            p.Frame = plr_frame;
+            p.FrameCount = 60;
+        }
+
+        // center NPC if player is moving up/down
+        if(plr_frame != 16)
+        {
+            NPC[numNPCs].Location.X = p.Location.X + (p.Location.Width - NPC[numNPCs].Location.Width) / 2;
+            NPC[numNPCs].Location.Y += (plr_frame == 19) ? 8 : -8;
+            NPC[numNPCs].Direction = throw_dir;
+            throw_dir = 0;
+        }
+
+        // don't slow NPC down in its first frame of processing
+        NPC[numNPCs].Wet = 2;
+
+        // reset NPC speed
+        NPC[numNPCs].Location.SpeedX = 4 * throw_dir;
+        NPC[numNPCs].Location.SpeedY = (throw_dir) ? 2 : 3;
+
+        // special logic for throwing upwards during Polar Swim
+        if(throw_up)
+        {
+            NPC[numNPCs].Special4 = 1; // low gravity and no speed cap
+            NPC[numNPCs].Special5 = 3; // prevent bouncing
+            NPC[numNPCs].Location.SpeedY = -NPC[numNPCs].Location.SpeedY;
+        }
+
+        // add player momentum
+        NPC[numNPCs].Location.SpeedX += p.Location.SpeedX;
+        NPC[numNPCs].Location.SpeedY += p.Location.SpeedY;
+    }
+    else if(!p.SpinJump)
+        p.FrameCount = 110;
 
     PlayerThrownNpcMazeCheck(p, NPC[numNPCs]);
 

@@ -245,7 +245,6 @@ static void s_makePetMount(int A)
     const Player_t& p = Player[A];
 
     numNPCs++;
-    NPC[numNPCs] = NPC_t();
 
     NPC[numNPCs].Direction = p.Direction;
     NPC[numNPCs].Active = true;
@@ -861,13 +860,7 @@ void SetupPlayers()
         }
 
         // section check
-        Player[A].Section = -1;
-        CheckSection(A); // find the section the player is in
-        if(Player[A].Section == -1)
-        {
-            Player[A].Section = 0;
-            CheckSection(A);
-        }
+        CheckSection_Init(A); // find the section the player is in
 
         // Set player's direction to left automatically when a start point is located at right side of the section
         if(Player[A].Location.X + Player[A].Location.Width / 2 > level[Player[A].Section].X + (level[Player[A].Section].Width - level[Player[A].Section].X) / 2)
@@ -1102,7 +1095,6 @@ void PlayerHurt(const int A)
                     {
                         p.Mount = 0;
                         numNPCs++;
-                        NPC[numNPCs] = NPC_t();
                         NPC[numNPCs].Direction = p.Direction;
                         if(NPC[numNPCs].Direction == 1)
                             NPC[numNPCs].Frame = 4;
@@ -1522,12 +1514,12 @@ void EveryonesDead()
         ReturnWarpSaved = 0;
     }
 
+    // Ensure everything is clear
+    GraphicsClearScreen();
+
 // Play fade effect instead of wait (see ProcessLastDead() above)
     if(!g_config.EnableInterLevelFade)
     {
-        XRender::setTargetTexture();
-        XRender::clearBuffer();
-        XRender::repaint();
 //    if(MagicHand)
 //        BitBlt frmLevelWindow::vScreen[1].hdc, 0, 0, frmLevelWindow::vScreen[1].ScaleWidth, frmLevelWindow::vScreen[1].ScaleHeight, 0, 0, 0, vbWhiteness;
         if(!g_config.unlimited_framerate)
@@ -1626,18 +1618,15 @@ void UnDuck(Player_t &p)
 void CheckSection(const int A)
 {
     // finds out what section the player is in and handles the music for section changes
-    int B = 0;
-    int C = 0;
-    int oldSection = 0;
-    int foundSection = 0;
-    auto &p = Player[A];
-
     if(LevelSelect)
         return;
 
-    oldSection = p.Section;
+    auto &p = Player[A];
 
-    for(B = 0; B < numSections; B++)
+    int oldSection = p.Section;
+    int foundSection_loop = 0;
+
+    for(int B = 0; B < numSections; B++)
     {
         if(p.Location.X + p.Location.Width >= level[B].X)
         {
@@ -1647,7 +1636,7 @@ void CheckSection(const int A)
                 {
                     if(p.Location.Y <= level[B].Height)
                     {
-                        foundSection = 1;
+                        foundSection_loop = 1;
 
                         if(oldSection != B /*&& (nPlay.Online == false || nPlay.MySlot == A - 1)*/)
                         {
@@ -1663,9 +1652,9 @@ void CheckSection(const int A)
         }
     }
 
-    if(!foundSection)
+    if(foundSection_loop == 0)
     {
-        for(B = 0; B < numSections; B++)
+        for(int B = 0; B < numSections; B++)
         {
             if(p.Location.X + p.Location.Width >= LevelREAL[B].X)
             {
@@ -1676,11 +1665,12 @@ void CheckSection(const int A)
                         if(p.Location.Y <= LevelREAL[B].Height)
                         {
                             p.Section = B;
-                            foundSection = 2;
+                            foundSection_loop = 2;
 
                             // there was a music update here that used the stricter criterion of never interrupting music tracks below 0, or 6 or 15
 
-                            for(C = 1; C <= numPlayers; C++)
+                            // move player to a different player in the section
+                            for(int C = 1; C <= numPlayers; C++)
                             {
                                 if(Player[C].Section == p.Section && C != A)
                                 {
@@ -1698,31 +1688,34 @@ void CheckSection(const int A)
         }
     }
 
-    // audiovisual updates
-    if(foundSection && p.Section != oldSection && !GameMenu && (&ScreenByPlayer(A) == l_screen))
+
+    // audiovisual updates if player's section changed (ignore if menu is active or player is offscreen)
+    if(p.Section != oldSection && !GameMenu && (&ScreenByPlayer(A) == l_screen))
     {
-        B = p.Section;
+        int B = p.Section;
 
         UpdateSoundFX(B);
 
         bool boss_track = (curMusic == 6 || curMusic == 15);
 
-        if(curMusic >= 0 && !(foundSection == 2 && boss_track)) // Dont interupt boss / switch music
+        if(curMusic < 0)
         {
-            if(curMusic != bgMusic[B] || (delayMusicIsSet() && bgMusic[B] != 24))
-            {
+            // don't interrupt switch music
+        }
+        else if(foundSection_loop == 2 && boss_track)
+        {
+            // don't interrupt boss track (this condition only existed in the second loop above)
+        }
+        // do change music -- normal music change
+        else if(curMusic != bgMusic[B] || (delayMusicIsSet() && bgMusic[B] != 24))
+        {
+            StartMusic(B);
+        }
+        // custom music change
+        else if(bgMusic[B] == 24)
+        {
+            if(oldSection >= 0 && CustomMusic[oldSection] != CustomMusic[p.Section])
                 StartMusic(B);
-            }
-            else if(bgMusic[B] == 24)
-            {
-                if(oldSection >= 0)
-                {
-                    if(CustomMusic[oldSection] != CustomMusic[p.Section])
-                    {
-                        StartMusic(B);
-                    }
-                }
-            }
         }
 
         ClearBuffer = true;
@@ -1735,6 +1728,20 @@ void CheckSection(const int A)
             XRender::unloadTexture(GFXBackground2[oldSection]);
         }
 #endif
+    }
+}
+
+// routine moved from SetupPlayers and now used at several other call sites during level start
+void CheckSection_Init(const int A)
+{
+    Player[A].Section = -1;
+
+    CheckSection(A);
+
+    if(Player[A].Section == -1)
+    {
+        Player[A].Section = 0;
+        // SetupPlayers originally called CheckSection again here but the result could not have been different
     }
 }
 
@@ -1860,12 +1867,12 @@ void PlayerFrame(Player_t &p)
                 {
                     p.FrameCount = 60;
 
-                    if(p.Controls.Up)
-                        p.Frame = 40;
-                    else if(p.Controls.Down)
-                        p.Frame = 19;
-                    else
+                    if(p.Controls.Left || p.Controls.Right)
                         p.Frame = 16;
+                    else if(p.Controls.Up)
+                        p.Frame = 40;
+                    else // if(p.Controls.Down)
+                        p.Frame = 19;
                 }
             }
         }
@@ -3208,7 +3215,7 @@ void YoshiEat(const int A)
     {
         auto &n = NPC[B];
         if(((n->IsACoin && n.Special == 1) || !n->NoYoshi) &&
-           n.Active && ((!n->IsACoin || n.Special == 1) || n.Type == 103) &&
+           n.Active && ((!n->IsACoin || n.Special == 1) || n.Type == NPCID_RED_COIN) &&
            !NPCIsAnExit(n) && !n.Generator && !n.Inert && !NPCIsYoshi(n) &&
             n.Effect != NPCEFF_PET_TONGUE && n.Immune == 0 && n.Type != NPCID_ITEM_BURIED &&
             !(n.Projectile && n.Type == NPCID_BULLET) && n.HoldingPlayer == 0)
@@ -3359,7 +3366,6 @@ void YoshiSpit(const int A)
             for(B = 1; B <= 3; B++)
             {
                 numNPCs++;
-                NPC[numNPCs] = NPC_t();
                 NPC[numNPCs].Direction = p.Direction;
                 NPC[numNPCs].Type = NPCID_PET_FIRE;
                 NPC[numNPCs].Frame = EditorNPCFrame(NPC[numNPCs].Type, NPC[numNPCs].Direction);
@@ -3563,7 +3569,6 @@ void PlayerDismount(const int A)
         Player[A].Mount = 0;
         Player[A].StandingOnNPC = 0;
         numNPCs++;
-        NPC[numNPCs] = NPC_t();
         Player[A].FlyCount = 0;
         Player[A].RunCount = 0;
         Player[A].CanFly = false;
@@ -4479,7 +4484,6 @@ void ClownCar()
                 {
                     NPC[B].Special = 1;
                     numNPCs++;
-                    NPC[numNPCs] = NPC_t();
                     NPC[B].Special2 = numNPCs;
 
                     NPC[numNPCs].Active = true;
@@ -4635,6 +4639,9 @@ void WaterCheck(const int A)
 
                     if(!p.Controls.Jump && !p.Controls.AltJump)
                         p.CanJump = true;
+
+                    if(p.State == PLR_STATE_CYCLONE)
+                        p.DoubleJump = true;
 
                     p.SwimCount = 0;
 
@@ -5063,7 +5070,6 @@ void PlayerGrabCode(const int A, bool DontResetGrabTime)
 
                     // For B = 1 To 3
                         numNPCs++;
-                        NPC[numNPCs] = NPC_t();
                         NPC[numNPCs].CantHurt = 10000;
                         NPC[numNPCs].CantHurtPlayer = A;
                         NPC[numNPCs].BattleOwner = A;
@@ -5165,7 +5171,6 @@ void PlayerGrabCode(const int A, bool DontResetGrabTime)
                     NPC[p.HoldingNPC].Special = 1;
                     NPC[p.HoldingNPC].Special2 = numNPCs + 1;
                     numNPCs++;
-                    NPC[numNPCs] = NPC_t();
                     NPC[numNPCs].Active = true;
                     NPC[numNPCs].Section = p.Section;
                     NPC[numNPCs].TimeLeft = 100;

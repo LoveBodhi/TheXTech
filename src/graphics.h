@@ -42,6 +42,8 @@ void doShakeScreenClear();
 void UpdateGraphics2(bool skipRepaint = false);
 // Unpack all visible lazily-loaded graphics
 void GraphicsLazyPreLoad();
+// Draws the black screen (A final screen clean-up before quitting, even frame-skip is enabled)
+void GraphicsClearScreen();
 // Public Sub UpdateGraphics() 'This draws the graphic to the screen when in a level/game menu/outro/level editor
 // This draws the graphic to the screen when in a level/game menu/outro/level editor
 void UpdateGraphics(bool skipRepaint = false);
@@ -250,7 +252,7 @@ void DrawCycloneAccessory(int Z, const Player_t& p, int cX, int tY, XTColor c);
 // Public Sub ScreenShot()
 void ScreenShot();
 // Public Sub DrawFrozenNPC(Z As Integer, A As Integer)
-void DrawFrozenNPC(int Z, int A);
+void DrawFrozenNPC(int camX, int camY, int A);
 // NEW: draw wings for an NPC at a particular location
 void DrawNPCWings(const NPC_t& n, int sX, int sY, XTColor cn);
 

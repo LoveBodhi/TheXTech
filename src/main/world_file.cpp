@@ -36,6 +36,7 @@
 #include "../main/trees.h"
 #include "level_file.h"
 #include "world_file.h"
+#include "saved_layers.h"
 #include "main/game_info.h"
 #include "main/level_save_info.h"
 #include "main/screen_progress.h"
@@ -107,6 +108,11 @@ bool OpenWorld(std::string FilePath)
     LoadCustomConfig();
     FindCustomPlayers();
     LoadCustomGFX(true);
+    if(!LoadDefaultSavedLayers())
+    {
+        MessageText = "savedlayers.ini invalid";
+        return false;
+    }
 
     // bool compatModern = (g_config.compatibility_mode == Config_t::COMPAT_OFF);
 
@@ -473,10 +479,19 @@ bool OpenWorld_Music(void*, WorldMusicBox& m)
         }
 
         // In game they are smaller (30x30), in world they are 32x32
-        box.Location.Width = 30;
-        box.Location.Height = 30;
-        box.Location.Y += 1;
-        box.Location.X += 1;
+        if(!LevelEditor)
+        {
+            box.Location.Width = 30;
+            box.Location.Height = 30;
+            box.Location.Y += 1;
+            box.Location.X += 1;
+        }
+        else
+        {
+            box.Location.Width = 32;
+            box.Location.Height = 32;
+        }
+
         // box.Z = zCounter++;
         treeWorldMusicAdd(&box);
     }
@@ -677,6 +692,8 @@ void ClearWorld(bool quick)
         UnloadCustomSound();
         LoadPlayerDefaults();
     }
+
+    ClearSavedLayers();
 
     MaxWorldStars = 0;
     numTiles = 0;

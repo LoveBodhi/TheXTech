@@ -114,6 +114,7 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                             if(BlockHurts[Block[B].Type])
                             {
                                 if(Player[A].Mount == 2 ||
+                                    InvincibilityTime ||
                                    (
                                        ((HitSpot == 1 && Player[A].Mount) || (Player[A].Rolling && Player[A].State == PLR_STATE_SHELL)) &&
                                        Block[B].Type != 598
@@ -956,8 +957,11 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
             {
                 Player[A].Location.SpeedY = Physics.PlayerJumpVelocity;
                 Block[floorBlock].Kill = true;
-                iBlocks += 1;
-                iBlock[iBlocks] = floorBlock;
+                if(iBlocks < maxBlocks)
+                {
+                    iBlocks++;
+                    iBlock[iBlocks] = floorBlock;
+                }
                 // HitSpot = 0; // this definition is never used
                 floorBlock = 0;
                 Player[A].Jump = 7;
