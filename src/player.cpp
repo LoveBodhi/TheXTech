@@ -4617,6 +4617,9 @@ void WaterCheck(const int A)
                     if(p.Mount == 2 || p.Fairy)
                         continue;
 
+                    if(query_loc.Y + query_loc.Height - Physics.PlayerGravity < Water[B].Location.Y)
+                        continue;
+
                     p.CurMazeZone = B;
 
                     PhysEnv_Maze_PickDirection(p.Location, B, p.MazeZoneStatus);
@@ -5559,7 +5562,7 @@ void LinkFrame(Player_t &p)
     }
     else if(p.Location.SpeedY != 0 && p.StandingOnNPC == 0 && p.Slope == 0 && !(p.Quicksand > 0 && p.Location.SpeedY > 0)) // Jumping/falling
     {
-        if(CanWallJump && (p.Pinched.Left2 == 2 || p.Pinched.Right4 == 2) && (!p.SlippyWall || p.State == PLR_STATE_POLAR))
+        if(CanWallJump && (p.Pinched.Left2 == 2 || p.Pinched.Right4 == 2) && (!p.SlippyWall || p.State == PLR_STATE_POLAR) && !(p.State == PLR_STATE_CYCLONE && !p.DoubleJump))
         {
             s_makeDust(p, 8, tempLocation);
             p.Frame = 11;

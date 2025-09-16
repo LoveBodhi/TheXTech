@@ -334,7 +334,11 @@
             "errorNoStartPoint": "கிடைக்கக்கூடிய தொடக்க புள்ளிகள் அல்லது நுழைவு வார்ப் குறிப்பிடப்படாததால் மட்டத்தைத் தொடங்க முடியாது.\n\n கோப்பு: {0}",
             "errorInvalidEnterWarp": "தவறான நுழைவு வார்ப் {1} குறிப்பிடப்பட்டதால் மட்டத்தைத் தொடங்க முடியாது.\n மொத்த வார்ப் உள்ளீடுகள்: {2}\n\n கோப்பு: {0}",
             "openFileFailed": "\"{0}\" ஐ திறக்க முடியாது: கோப்பு இல்லை அல்லது சிதைக்கப்படவில்லை.",
-            "warpNeedStarCount": "நுழைய உங்களுக்கு {0} {1} தேவை."
+            "warpNeedStarCount": "நுழைய உங்களுக்கு {0} {1} தேவை.",
+            "errorTooOldGameAssets": "",
+            "openIPCDataFailed": "",
+            "IPCTimeOut": "",
+            "errorTooOldEngine": ""
         },
         "message": {
             "scanningLevels": "அளவை ச்கேனிங் ..."
@@ -369,6 +373,23 @@
             "returnToEditor": "எடிட்டருக்குத் திரும்பு",
             "saveAndContinue": "சேமித்து தொடரவும்",
             "saveAndQuit": "சேமித்து வெளியேறவும்"
+        },
+        "screenPaused": "இடைநிறுத்தப்பட்டது",
+        "loader": {
+            "statusLoadData": "",
+            "statusGameInfo": "",
+            "statusLoadFile": "",
+            "statusFinishing": "",
+            "statusAssetPacks": "",
+            "statusTranslations": ""
+        },
+        "ipcStatus": {
+            "loadingdone": "",
+            "dataAccepted": "",
+            "dataTransferStarted": "",
+            "errorTimeout": "",
+            "dataValid": "",
+            "waitingInput": ""
         }
     },
     "menu": {
@@ -488,6 +509,7 @@
             "caseTouch": "(தொடு)",
             "controlsConnected": "இணைக்கப்பட்டுள்ளது:",
             "controlsDeleteKey": "(நீக்க ஆல்ட் சம்ப்)",
+            "controlsDeleteKey2": "(நீக்க அனைத்து ரன்)",
             "controlsDeviceTypes": "சாதன வகைகள்",
             "controlsInUse": "(பயன்பாட்டில்)",
             "controlsNewProfile": "<புதிய சுயவிவரம்>",
@@ -629,8 +651,17 @@
                     "_name": "முழுத்திரை வகை",
                     "auto": "தானி",
                     "desktop": "டெச்க்டாப்",
-                    "desktop-tip": "தற்போதைய திரை தெளிவுத்திறனை வைத்திருங்கள்"
-                }
+                    "desktop-tip": "தற்போதைய திரை தெளிவுத்திறனை வைத்திருங்கள்",
+                    "exclusive": "பிரத்தியேக",
+                    "exclusive-tip": "உடல் திரை தெளிவுத்திறனை அமைக்கவும்"
+                },
+                "fullscreen-depth": {
+                    "16": "16-பிட்",
+                    "32": "32-பிட்",
+                    "_name": "பிரத்யேக பிட் ஆழம்",
+                    "auto": "தானி"
+                },
+                "fullscreen-res": "பிரத்யேக ரெச்"
             },
             "audio": {
                 "sfx-spatial-audio-tip": "ஆஃப்ச்கிரீன் ஒலிகளின் அளவைக் குறைக்கவும்",
@@ -723,7 +754,8 @@
                     "nearest": "அருகில்",
                     "2x": "ஃச்",
                     "full": "முழு",
-                    "center": "நடுவண்"
+                    "center": "நடுவண்",
+                    "3x": "Zks"
                 },
                 "show-episode-title": {
                     "off": "அணை",

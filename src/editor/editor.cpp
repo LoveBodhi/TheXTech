@@ -1650,14 +1650,14 @@ void UpdateInterprocess()
     case IntProc::PlaceItem:
     {
         std::string raw = IntProc::getCMD();
-        pLogDebug(raw.c_str());
+        pLogDebug(raw);
         LevelData got;
         PGE_FileFormats_misc::RawTextInput raw_file(&raw);
         FileFormats::ReadExtendedLvlFile(raw_file, got);
 
         if(!got.meta.ReadFileValid)
         {
-            pLogDebug(got.meta.ERROR_info.c_str());
+            pLogDebug(got.meta.ERROR_info);
             break;
         }
 
@@ -2569,11 +2569,11 @@ void zTestLevel(bool magicHand, bool interProcess)
         ElapsedTimer time;
         time.start();
         //wait for accepting of level data
-        bool timeOut = false;
+        // bool timeOut = false;
         int attempts = 0;
 
         pLogDebug("ICP: Waiting reply....");
-        IntProc::setState("Waiting for input data...");
+        IntProc::setState(g_gameStrings.ipcStatusWaitingInput);
         while(!IntProc::hasLevelData())
         {
             UpdateLoadREAL();
@@ -2593,10 +2593,13 @@ void zTestLevel(bool magicHand, bool interProcess)
             if(attempts > 4)
             {
                 pLogWarning("ICP: Wait timeout");
-                timeOut = true;
-                IntProc::setState("ERROR: Wait time out.");
+                // timeOut = true;
+                IntProc::setState(g_gameStrings.ipcStatusErrorTimeout);
+                MessageText = g_gameStrings.errorIPCTimeOut;
                 UpdateLoadREAL();
-                PGE_Delay(1000);
+                g_MessageType = MESSAGE_TYPE_SYS_WARNING;
+                PauseGame(PauseCode::Message);
+                // PGE_Delay(1000);
                 GameIsActive = false;
                 return;
             }
@@ -2606,18 +2609,19 @@ void zTestLevel(bool magicHand, bool interProcess)
 
         UpdateLoadREAL();
 
-        if(!timeOut && !OpenLevelData(IntProc::editor->m_acceptedLevel, IntProc::editor->m_accepted_lvl_path)) //-V560
+        if(!OpenLevelData(IntProc::editor->m_acceptedLevel, IntProc::editor->m_accepted_lvl_path)) //-V560
         {
             pLogWarning("Bad file format!");
             pLogDebug("ERROR: Bad data format");
             UpdateLoadREAL();
-            PGE_Delay(1000);
+            ReportLoadFailure("<Interprocess>", true);
+            // PGE_Delay(1000);
             GameIsActive = false;
             return;
         }
 
         pLogDebug("ICP: Done, starting a game....");
-        IntProc::setState("Done. Starting game...");
+        IntProc::setState(g_gameStrings.ipcStatusLoadingDone);
         UpdateLoadREAL();
 
         OpenLevelDataPost();

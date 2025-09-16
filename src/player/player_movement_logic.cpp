@@ -593,7 +593,7 @@ void PlayerMovementY(int A)
     if(Player[A].Wet > 0 || Player[A].WetFrame)
         Player[A].CanFloat = false;
 
-    bool has_wall_traction = CanWallJump && (Player[A].Pinched.Left2 == 2 || Player[A].Pinched.Right4 == 2) && !Player[A].SpinJump && (!Player[A].SlippyWall || Player[A].State == PLR_STATE_POLAR) && Player[A].HoldingNPC == 0 && Player[A].Mount == 0 && !Player[A].Duck;
+    bool has_wall_traction = CanWallJump && (Player[A].Pinched.Left2 == 2 || Player[A].Pinched.Right4 == 2) && !Player[A].SpinJump && (!Player[A].SlippyWall || Player[A].State == PLR_STATE_POLAR) && Player[A].HoldingNPC == 0 && Player[A].Mount == 0 && !Player[A].Duck && !(Player[A].State == PLR_STATE_CYCLONE && !Player[A].DoubleJump);
 
     // handles the regular jump
     if(Player[A].Controls.Jump || (Player[A].Controls.AltJump &&
@@ -991,7 +991,12 @@ void PlayerMovementY(int A)
         if(Player[A].NoGravity == 0)
         {
             if(has_wall_traction && Player[A].Location.SpeedY > 0)
+            {
                 Player[A].Location.SpeedY += Physics.PlayerGravity / 2;
+
+                if(Player[A].Location.SpeedY > Physics.PlayerTerminalVelocity / 2)
+                    Player[A].Location.SpeedY = Physics.PlayerTerminalVelocity / 2;
+            }
             else if(Player[A].Character == 2)
                 Player[A].Location.SpeedY += Physics.PlayerGravity * 0.9_r;
             else
@@ -1463,8 +1468,17 @@ void PlayerMazeZoneMovement(int A)
         // prevent unexpected block clipping
         if(Player[A].MazeZoneStatus % 4 == MAZE_DIR_DOWN)
         {
+            // make sure the player won't clip into blocks below the maze zone
             PlayerPush(A, 1);
+
+            // unduck the player now if they were on Mount 3, and then make sure they don't hit the top of the maze zone ceiling
+            if(Player[A].Duck && !Player[A].Controls.Down)
+            {
+                UnDuck(Player[A]);
+                PlayerPush(A, 3);
+            }
         }
+        // help the player hit blocks above the maze zone
         else if(Player[A].MazeZoneStatus % 4 == MAZE_DIR_UP)
         {
             Player[A].StandUp = true;

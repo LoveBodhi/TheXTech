@@ -72,11 +72,11 @@ static void APIENTRY s_HandleGLDebugMessage(GLenum source, GLenum type, GLuint i
 
     s_gl_message_counts[id]++;
 
-    auto log_call = pLogDebug;
+    auto log_call = static_cast<void (*)(const char*,...)>(pLogDebug);
     if(type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR || severity == GL_DEBUG_SEVERITY_HIGH)
-        log_call = pLogWarning;
+        log_call = static_cast<void (*)(const char*,...)>(pLogWarning);
     else if(type == GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR || type == GL_DEBUG_TYPE_PORTABILITY || type == GL_DEBUG_TYPE_PERFORMANCE || severity == GL_DEBUG_SEVERITY_MEDIUM)
-        log_call = pLogInfo;
+        log_call = static_cast<void (*)(const char*,...)>(pLogInfo);
 
     UNUSED(source);
     UNUSED(id);
@@ -91,10 +91,10 @@ static void APIENTRY s_HandleGLDebugMessage(GLenum source, GLenum type, GLuint i
 
 #endif
 
-void RenderGL::try_init_gl(SDL_GLContext& context, SDL_Window* window, GLint profile, GLint majver, GLint minver, Config_t::RenderMode_t mode)
+void RenderGL::try_init_gl(GLint profile, GLint majver, GLint minver, Config_t::RenderMode_t mode)
 {
     // context already initialized
-    if(context)
+    if(m_gContext)
         return;
 
     pLogInfo("Render GL: attempting to create OpenGL %s %d.%d+ context...", get_profile_name(profile), majver, minver);
@@ -102,12 +102,40 @@ void RenderGL::try_init_gl(SDL_GLContext& context, SDL_Window* window, GLint pro
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, profile);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, majver);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, minver);
-    context = SDL_GL_CreateContext(window);
+    m_gContext = SDL_GL_CreateContext(m_window);
 
-    if(context)
-        g_config.render_mode.obtained = mode;
-    else
+    if(!m_gContext)
+    {
         pLogInfo("Render GL: context creation failed: %s", SDL_GetError());
+        return;
+    }
+
+    // initialization succeeded, save context info
+    g_config.render_mode.obtained = mode;
+
+    // Check version
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &m_gl_profile);
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &m_gl_majver);
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &m_gl_minver);
+
+    // can't trust SDL2
+    m_gl_ver_string = glGetString(GL_VERSION);
+    if(m_gl_ver_string)
+    {
+        for(int ver_end = 0; m_gl_ver_string[ver_end] != '\0'; ver_end++)
+        {
+            int ver_start = ver_end - 2;
+
+            if(ver_start >= 0
+                && m_gl_ver_string[ver_start] >= '0' && m_gl_ver_string[ver_start] <= '9'
+                && m_gl_ver_string[ver_end]   >= '0' && m_gl_ver_string[ver_end]   <= '9')
+            {
+                m_gl_majver = m_gl_ver_string[ver_start] - '0';
+                m_gl_minver = m_gl_ver_string[ver_end] - '0';
+                break;
+            }
+        }
+    }
 }
 
 bool RenderGL::initOpenGL()
@@ -129,54 +157,54 @@ bool RenderGL::initOpenGL()
 #ifdef THEXTECH_BUILD_GL_DESKTOP_MODERN
     if(g_config.render_mode == Config_t::RENDER_ACCELERATED_OPENGL)
     {
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
     }
 #endif
 
 #ifdef THEXTECH_BUILD_GL_ES_MODERN
     if(g_config.render_mode == Config_t::RENDER_ACCELERATED_OPENGL_ES)
     {
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 3, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 2, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 3, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 2, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
     }
 #endif
 
 #ifdef THEXTECH_BUILD_GL_DESKTOP_LEGACY
     if(g_config.render_mode == Config_t::RENDER_ACCELERATED_OPENGL_LEGACY)
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
 #endif
 
 #ifdef THEXTECH_BUILD_GL_ES_LEGACY
     if(g_config.render_mode == Config_t::RENDER_ACCELERATED_OPENGL_ES_LEGACY)
-        try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_ES_LEGACY);
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_ES_LEGACY);
 #endif
 
     // default fallback sequence
 
 #ifdef THEXTECH_BUILD_GL_DESKTOP_MODERN
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
 #endif
 
 #ifdef THEXTECH_BUILD_GL_ES_MODERN
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 3, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 2, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 3, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 2, 0, Config_t::RENDER_ACCELERATED_OPENGL_ES);
 #endif
 
 #ifdef THEXTECH_BUILD_GL_DESKTOP_MODERN
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
 #endif
 
 #ifdef THEXTECH_BUILD_GL_DESKTOP_LEGACY
 #   ifdef __APPLE__
-    try_init_gl(m_gContext, m_window, 0, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
+    try_init_gl(0, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
 #   else
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
 #   endif
 #endif
 
 #ifdef THEXTECH_BUILD_GL_ES_LEGACY
-    try_init_gl(m_gContext, m_window, SDL_GL_CONTEXT_PROFILE_ES, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_ES_LEGACY);
+    try_init_gl(SDL_GL_CONTEXT_PROFILE_ES, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_ES_LEGACY);
 #endif
 
     if(!m_gContext)
@@ -197,31 +225,12 @@ bool RenderGL::initOpenGL()
     }
 #endif
 
-    // Check version
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &m_gl_profile);
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &m_gl_majver);
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &m_gl_minver);
-
-    // can't trust SDL2
-    const GLubyte* gl_ver_string = glGetString(GL_VERSION);
-    if(gl_ver_string)
-    {
-        for(int ver_end = 0; gl_ver_string[ver_end] != '\0'; ver_end++)
-        {
-            int ver_start = ver_end - 2;
-
-            if(ver_start >= 0
-                && gl_ver_string[ver_start] >= '0' && gl_ver_string[ver_start] <= '9'
-                && gl_ver_string[ver_end]   >= '0' && gl_ver_string[ver_end]   <= '9')
-            {
-                m_gl_majver = gl_ver_string[ver_start] - '0';
-                m_gl_minver = gl_ver_string[ver_end] - '0';
-                break;
-            }
-        }
-    }
-
     const char* gl_renderer = (const char*)glGetString(GL_RENDERER);
+
+#ifdef VITA
+    // temporary: VitaGL doesn't support clearing buffers, including depth buffer
+    m_tweak_no_depth_buffer = true;
+#endif
 
 #ifdef _WIN32
     if(SDL_strcmp(gl_renderer, "GDI Generic") == 0)
@@ -234,11 +243,40 @@ bool RenderGL::initOpenGL()
             return false;
         }
     }
+
+    // Intel Iris Xe GPUs are faulty, textures gets seriously corrupted, this happens even in commercial games.
+    // Details: https://github.com/TheXTech/TheXTech/issues/859
+    // Also here: https://www.ixbt.com/news/2020/10/04/iris-xe-intel.html (in Russian)
+    if(SDL_strcmp(gl_renderer, "Intel(R) Iris(R) Xe Graphics") == 0)
+    {
+        pLogWarning("Render GL: faulty Intel Iris Xe GPU detected, it's impossible to guarantee the render quality here [See details: https://github.com/TheXTech/TheXTech/issues/859]");
+        pLogWarning("Depth buffer will be disabled.");
+        m_tweak_no_depth_buffer = true;
+    }
+
+    // On VirtualBox, when using Compatibility profile, the render fails to display content
+    // and the black screen appears. Loading Core profile works just fine.
+    if(m_gl_profile == SDL_GL_CONTEXT_PROFILE_COMPATIBILITY && SDL_strcmp(gl_renderer, "SVGA3D; build: RELEASE;  ") == 0)
+    {
+        pLogWarning("Render GL: Detected VirtualBox's SVGA3D backend, initializing the Core profile to avoid black screen");
+
+        SDL_GL_DeleteContext(m_gContext);
+        m_gContext = nullptr;
+
+#ifdef THEXTECH_BUILD_GL_DESKTOP_MODERN
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_CORE, 3, 3, Config_t::RENDER_ACCELERATED_OPENGL);
+#endif
+#ifdef THEXTECH_BUILD_GL_DESKTOP_LEGACY
+        try_init_gl(SDL_GL_CONTEXT_PROFILE_COMPATIBILITY, 1, 1, Config_t::RENDER_ACCELERATED_OPENGL_LEGACY);
+#endif
+    }
 #endif
 
     pLogInfo("Render GL: successfully initialized OpenGL %d.%d (Profile %s)", m_gl_majver, m_gl_minver, get_profile_name(m_gl_profile));
-    pLogInfo("OpenGL version: %s", gl_ver_string);
-    pLogInfo("OpenGL renderer: %s", gl_renderer);
+    if(m_gl_ver_string)
+        pLogInfo("OpenGL version: %s", m_gl_ver_string);
+    if(gl_renderer)
+        pLogInfo("OpenGL renderer: %s", gl_renderer);
 #ifdef RENDERGL_HAS_SHADERS
     if(m_gl_majver >= 2)
         pLogInfo("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
@@ -262,8 +300,8 @@ bool RenderGL::initOpenGL()
 
     bool gles1 = (m_gl_profile == SDL_GL_CONTEXT_PROFILE_ES && m_gl_majver == 1);
 
-    // depth buffering broken on some ancient Android phones under OpenGL ES 1
-    if(depth >= 16 && !gles1)
+    // depth buffering broken on some ancient Android phones under OpenGL ES 1 and on Intel Iris Xe
+    if(depth >= 16 && !gles1 && !m_tweak_no_depth_buffer)
         m_use_depth_buffer = true;
 
     // Check capabilities
@@ -634,8 +672,9 @@ void RenderGL::createFramebuffer(BufferIndex_t buffer)
             return;
         }
 
-        // even if window doesn't have depth buffer, this counts!
-        m_use_depth_buffer = true;
+        // even if window doesn't have depth buffer, this counts! (Exclusing hardware that fails with it)
+        if(!m_tweak_no_depth_buffer)
+            m_use_depth_buffer = true;
     }
 
     // (3) allocate framebuffer (required for game texture, otherwise optional with a fallback in framebufferCopy)
@@ -650,7 +689,7 @@ void RenderGL::createFramebuffer(BufferIndex_t buffer)
         }
         else
         {
-            pLogDebug("Render GL: Failed to allocate framebuffer %d, falling back to texture buffer (minor)");
+            pLogDebug("Render GL: Failed to allocate framebuffer, falling back to texture buffer (minor)");
             return;
         }
     }
@@ -664,6 +703,10 @@ void RenderGL::createFramebuffer(BufferIndex_t buffer)
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_game_depth_texture, 0);
         else
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_game_depth_rb);
+
+        // this fixes a bug where the screen could flicker black when resizing the window
+        if(m_use_depth_buffer)
+            glClear(GL_DEPTH_BUFFER_BIT);
     }
 
     // (4) status checking

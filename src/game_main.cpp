@@ -127,15 +127,15 @@ static int loadingThread(void *waiter_ptr)
     UNUSED(waiter_ptr);
 #endif
 
-    LoaderUpdateDebugString("Game info");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusGameInfo);
     initGameInfo();
     cheats_reset();
 
-    LoaderUpdateDebugString("Translations");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusTranslations);
     XLanguage::findLanguages(); // find present translations
     ReloadTranslations(); // load translations
 
-    LoaderUpdateDebugString("Asset packs");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusAssetPacks);
     GetAssetPacks();
 
     SetupPhysics(); // Setup Physics
@@ -158,7 +158,7 @@ static int loadingThread(void *waiter_ptr)
 
     InitSound(); // Setup sound effects
 
-    LoaderUpdateDebugString("Finishing...", true);
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusFinishing, true);
     UpdateLoad();
 
 #ifndef PGE_NO_THREADING
@@ -308,18 +308,24 @@ static void s_ExpandSectionForMenu()
         menu_section.Y = menu_section.Height - 2160;
 }
 
-void ReportLoadFailure(const std::string& filename)
+void ReportLoadFailure(const std::string& filename, bool isIPC)
 {
 #ifdef THEXTECH_ENABLE_SDL_NET
     XMessage::Disconnect();
+#endif
+#if !defined(THEXTECH_INTERPROC_SUPPORTED)
+    UNUSED(isIPC);
 #endif
 
     g_MessageType = MESSAGE_TYPE_SYS_WARNING;
 
     // temporarily store error code from load process in MessageTitle string
     std::swap(MessageText, MessageTitle);
-
+#if defined(THEXTECH_INTERPROC_SUPPORTED)
+    MessageText = isIPC ? g_gameStrings.errorOpenIPCDataFailed : fmt::format_ne(g_gameStrings.errorOpenFileFailed, filename);
+#else
     MessageText = fmt::format_ne(g_gameStrings.errorOpenFileFailed, filename);
+#endif
 
     // add error code from load process
     if(!MessageTitle.empty())
@@ -1177,9 +1183,12 @@ int GameMain(const CmdLineSetup_t &setup)
                 return 0;// Break on quit
             }
 
-            // Ensure everything is clear
-            GraphicsClearScreen();
-            XEvents::doEvents();
+            // Ensure everything is clear if the main menu is no longer active
+            if(!ScreenAssetPack::g_LoopActive)
+            {
+                GraphicsClearScreen();
+                XEvents::doEvents();
+            }
         }
 
         // World Map

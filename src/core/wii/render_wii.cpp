@@ -296,7 +296,7 @@ FIBITMAP* robust_FILoad(const std::string& path, int target_w, bool prefer_rgb56
     {
         GraphicsHelps::closeImage(rawImage);
         pLogWarning("Error loading of image file:\n"
-                    "Reason: %s."
+                    "Reason: %s.",
                     "Zero image size!");
         return nullptr;
     }
@@ -841,9 +841,9 @@ void lazyLoadPictureFromList(StdPicture_Sub& target, PGE_FileFormats_misc::TextI
             okay = true;
     }
 
-    if(!okay || w < 0 || w > 8192 || h < 0 || h > 8192)
+    if(!okay || w < 0 || w >= 32768 || h < 0 || h >= 32768)
     {
-        pLogWarning("Could not load image %s dimensions from load list", target.l.path);
+        pLogWarning("Could not load image %s dimensions from load list", target.l.path.c_str());
         target.inited = false;
         return;
     }

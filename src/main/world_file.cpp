@@ -23,6 +23,7 @@
 
 #include <json/json_rwops_input.hpp>
 #include <json/json.hpp>
+#include <fmt_format_ne.h>
 
 #include "core/render.h"
 
@@ -71,6 +72,9 @@ using callback_error = std::runtime_error;
 #endif
 
 bool OpenWorld_Post(const WorldLoad& load);
+
+// defined in level_file.cpp
+[[ noreturn ]] void priv_FeatureLevelError(const std::string& errMsg, int reqFeatureLevel, int curFeatureLevel);
 
 bool OpenWorld(std::string FilePath)
 {
@@ -146,7 +150,7 @@ bool OpenWorld(std::string FilePath)
 
         if(!FileFormats::OpenWorldFileT(in, wld))
         {
-            pLogWarning("Error of world \"%s\" file loading: %s (line %d).",
+            pLogWarning("Error of world \"%s\" file loading: %s (line %ld).",
                         FilePath.c_str(),
                         wld.meta.ERROR_info.c_str(),
                         wld.meta.ERROR_linenum);
@@ -165,7 +169,7 @@ bool OpenWorld(std::string FilePath)
 #ifdef PGEFL_CALLBACK_API
 void OpenWorld_Error(void*, FileFormatsError& e)
 {
-    pLogWarning("Error of world file loading: %s (line %d).",
+    pLogWarning("Error of world file loading: %s (line %ld).",
                 e.ERROR_info.c_str(),
                 e.ERROR_linenum);
 
@@ -196,9 +200,9 @@ bool OpenWorld_Head(void* userdata, WorldData& wld)
 #endif
 
     if(reqFeatureLevel > engineFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update TheXTech.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldEngine, reqFeatureLevel, engineFeatureLevel);
     else if(reqFeatureLevel > g_gameInfo.contentFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update your game assets.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldGameAssets, reqFeatureLevel, g_gameInfo.contentFeatureLevel);
 
     WorldName = wld.EpisodeTitle;
 

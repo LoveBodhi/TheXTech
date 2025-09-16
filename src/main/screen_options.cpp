@@ -42,6 +42,7 @@
 #include "main/screen_options.h"
 #include "graphics/gfx_frame.h"
 #include "graphics/gfx_marquee.h"
+#include "fontman/font_manager.h"
 #include "main/menu_controls.h"
 #include "controls.h"
 #include "control/controls_methods.h" // to cancel keyboard's double-click fullscreen
@@ -575,14 +576,7 @@ bool Mouse_Render(bool mouse, bool render)
         line = 30;
 
     // check for Chinese and Korean languages
-    int min_line_size = 18;
-
-#ifdef THEXTECH_ENABLE_TTF_SUPPORT
-    if(CurrentLanguage == "zh")
-        min_line_size = 26;
-    else if(CurrentLanguage == "ko")
-        min_line_size = 22;
-#endif
+    int min_line_size = FontManager::getMetricsValue(FontManager::Metrics_MenuMinLineHeight, CurrentLanguage);
 
     // (it's okay if we don't get 15 lines, but we need at least 18px per line.)
     int max_line = 15;
@@ -929,48 +923,22 @@ bool Logic()
 {
     size_t num_items = get_num_items();
 
-    bool upPressed = l_SharedControls.MenuUp;
-    bool downPressed = l_SharedControls.MenuDown;
-    bool leftPressed = l_SharedControls.MenuLeft;
-    bool rightPressed = l_SharedControls.MenuRight;
-
-    bool menuDoPress = l_SharedControls.MenuDo || l_SharedControls.Pause;
-    bool menuBackPress = l_SharedControls.MenuBack;
-
-    bool delPressed = false;
-    bool selectPressed = false;
-
-    for(int i = 0; i < l_screen->player_count; i++)
-    {
-        Controls_t &c = Controls::g_RawControls[i];
-
-        menuDoPress |= c.Start || c.Jump;
-        menuBackPress |= c.Run;
-
-        upPressed |= c.Up;
-        downPressed |= c.Down;
-        leftPressed |= c.Left;
-        rightPressed |= c.Right;
-
-        delPressed |= c.AltJump;
-        selectPressed |= c.Drop;
-    }
-
+    MenuControls_t menuControls = Controls::GetMenuControls();
 
     // IMPORTANT: delegate to MENU_INPUT_SETTINGS. Only relevant when launched from game.
     if(MenuMode == MENU_INPUT_SETTINGS)
     {
-        if(!upPressed && !downPressed && !leftPressed && !rightPressed && !menuDoPress && !menuBackPress && !delPressed && !selectPressed)
+        if(!menuControls.Up && !menuControls.Down && !menuControls.Left && !menuControls.Right && !menuControls.Do && !menuControls.Back && !menuControls.Erase && !menuControls.Home)
             MenuCursorCanMove = true;
 
-        if(MenuCursorCanMove && upPressed)
+        if(MenuCursorCanMove && menuControls.Up)
         {
             PlaySoundMenu(SFX_Slide);
             MenuCursor--;
             MenuCursorCanMove = false;
         }
 
-        if(MenuCursorCanMove && downPressed)
+        if(MenuCursorCanMove && menuControls.Down)
         {
             PlaySoundMenu(SFX_Slide);
             MenuCursor++;
@@ -991,12 +959,12 @@ bool Logic()
     }
 
 
-    if(!upPressed && !downPressed && !leftPressed && !rightPressed && !menuDoPress && !menuBackPress && !delPressed && !selectPressed)
+    if(!menuControls.Up && !menuControls.Down && !menuControls.Left && !menuControls.Right && !menuControls.Do && !menuControls.Back && !menuControls.Erase && !menuControls.Home)
         controls_ready = true;
     else
         mouse_scroll_cooldown = -1;
 
-    if(controls_ready && menuBackPress)
+    if(controls_ready && menuControls.Back)
     {
         controls_ready = false;
 
@@ -1008,37 +976,37 @@ bool Logic()
         }
     }
 
-    if(controls_ready && menuDoPress)
+    if(controls_ready && menuControls.Do)
     {
         controls_ready = false;
         Do();
     }
 
-    if(controls_ready && leftPressed)
+    if(controls_ready && menuControls.Left)
     {
         controls_ready = false;
         RotateLeft();
     }
 
-    if(controls_ready && rightPressed)
+    if(controls_ready && menuControls.Right)
     {
         controls_ready = false;
         RotateRight();
     }
 
-    if(controls_ready && delPressed)
+    if(controls_ready && menuControls.Erase)
     {
         controls_ready = false;
         Delete();
     }
 
-    if(controls_ready && selectPressed)
+    if(controls_ready && menuControls.Home)
     {
         controls_ready = false;
         Select();
     }
 
-    if(controls_ready && upPressed)
+    if(controls_ready && menuControls.Up)
     {
         controls_ready = false;
         if(cur_item == 0)
@@ -1056,7 +1024,7 @@ bool Logic()
         PlaySoundMenu(SFX_Slide);
     }
 
-    if(controls_ready && downPressed)
+    if(controls_ready && menuControls.Down)
     {
         controls_ready = false;
         cur_item++;

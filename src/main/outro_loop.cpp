@@ -256,7 +256,7 @@ void AddCredit(const std::string &newCredit)
     if(numCredits > maxCreditsLines)
     {
         numCredits = maxCreditsLines;
-        pLogWarning("Can't add more credits lines: max limit has been excited ({0} linex maximum)", maxCreditsLines);
+        pLogWarning("Can't add more credits lines: max limit has been excited (%d linex maximum)", maxCreditsLines);
         return;
     }
 
@@ -375,6 +375,7 @@ void SetupCredits()
     AddCredit("Trickii"); // For extensive bugtesting in 2024
     AddCredit("AntonioGZZ96"); // For careful bugtesting in 2024
     AddCredit("ddrsoul"); // For sharing the engine with the PortMaster community (2024)
+    AddCredit("ChaikaWiFika"); // For the help with the testing/debugging on Intel Iris Xe GPU in 2025
     AddCredit("Bloxen"); // For help testing and improving the 38A powerups (2025)
     // --- P.S. Put all next lines above THIS comment line. ---
 #endif

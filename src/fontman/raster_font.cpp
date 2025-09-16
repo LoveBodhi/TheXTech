@@ -17,6 +17,7 @@
  * or see <http://www.gnu.org/licenses/>.
  */
 
+#include <inttypes.h>
 #include "raster_font.h"
 
 #include "../core/render.h"
@@ -83,7 +84,7 @@ void RasterFont::loadFont(const std::string &font_ini)
     font.read("ttf-outlines", m_ttfOutlines, false);
     font.read("ttf-colour", ttfColourPacked, 0xFFFFFFFF);
     font.read("ttf-outlines-colour", ttfOutlinesColourPacked, 0x000000FF);
-    font.read("ttf-fallback", m_ttfFallback, "");
+    font.read("ttf-fallback", m_ttfFallback, std::string());
     font.read("ttf-size", m_ttfSize, -1);
 #if defined(THEXTECH_USE_1X_FONT_MODE) // Use special fonts targeted to smaller screen resolutions
     font.read("ttf-fallback-1x", m_ttfFallback, m_ttfFallback);
@@ -151,7 +152,7 @@ void RasterFont::loadFontMap(const std::string& fontmap_ini)
 
     if((w <= 0) || (h <= 0))
     {
-        pLogWarning("Wrong width and height values! %d x %d",  w, h);
+        pLogWarning("Wrong width and height values! %" PRId32 " x %" PRId32 "",  w, h);
         return;
     }
 
@@ -201,7 +202,7 @@ void RasterFont::loadFontMap(const std::string& fontmap_ini)
 
         if(charPosX.empty())
         {
-            pLogDebug("=invalid-X=%d=", x.c_str());
+            pLogDebug("=invalid-X=%s=", x.c_str());
             continue;
         }
 
@@ -209,7 +210,7 @@ void RasterFont::loadFontMap(const std::string& fontmap_ini)
         {
             if(endPos == x.size())
             {
-                pLogWarning("=invalid-Y=%d= in the raster font map %s", x.c_str(), fontmap_ini.c_str());
+                pLogWarning("=invalid-Y=%s= in the raster font map %s", x.c_str(), fontmap_ini.c_str());
                 continue;
             }
             begPos = endPos + 1;//+1 to skip '-' divider
@@ -219,7 +220,7 @@ void RasterFont::loadFontMap(const std::string& fontmap_ini)
             charPosY = x.substr(begPos, endPos);
             if(charPosY.empty())
             {
-                pLogWarning("=invalid-Y=%d= in the raster font map %s", x.c_str(), fontmap_ini.c_str());
+                pLogWarning("=invalid-Y=%s= in the raster font map %s", x.c_str(), fontmap_ini.c_str());
                 continue;
             }
         }
@@ -327,7 +328,7 @@ PGE_Size RasterFont::glyphSize(const char* utf8char, uint32_t charNum, uint32_t 
                     font_size_use /= 2;
 
                 TtfFont::TheGlyphInfo glyph = font->getGlyphInfo(&cx, font_size_use);
-                uint32_t glyph_width = glyph.width > 0 ? uint32_t(glyph.advance >> 6) : (font_size_use >> 2);
+                uint32_t glyph_width = glyph.width > 0 ? uint32_t(glyph.advance_x >> 6) : (font_size_use >> 2);
                 uint32_t glyph_height = glyph.height;
                 if(doublePixel)
                 {
@@ -438,6 +439,7 @@ PGE_Size RasterFont::printText(const char* text, size_t text_size,
                 uint32_t font_size_use = (m_ttfSize > 0) ? m_ttfSize : m_letterWidth;
 
                 int y_offset = 0;
+                int baseline = h;
                 bool doublePixel = font->doublePixel();
 
                 if(font->bitmapSize())
@@ -448,9 +450,15 @@ PGE_Size RasterFont::printText(const char* text, size_t text_size,
                     if(fontSize == 0)
                         y_offset = 0;
                     else if(doublePixel)
+                    {
                         y_offset = ((int)fontSize - (font->bitmapSize() * 2)) / 2;
+                        baseline += - (h / 2) + font->bitmapSize();
+                    }
                     else
+                    {
                         y_offset = ((int)fontSize - font->bitmapSize()) / 2;
+                        baseline += - (h / 2) + (font->bitmapSize() / 2);
+                    }
 
                     font_size_use = font->bitmapSize();
                 }
@@ -458,8 +466,9 @@ PGE_Size RasterFont::printText(const char* text, size_t text_size,
                     font_size_use /= 2;
 
                 TtfFont::TheGlyphInfo glyph = font->getGlyphInfo(&cx, font_size_use);
-                uint32_t glyph_width = glyph.width > 0 ? uint32_t(glyph.advance >> 6) : (font_size_use >> 2);
+                uint32_t glyph_width = glyph.width > 0 ? uint32_t(glyph.advance_x >> 6) : (font_size_use >> 2);
                 uint32_t glyph_height = glyph.height;
+
                 if(doublePixel)
                 {
                     glyph_width *= 2;
@@ -482,9 +491,9 @@ PGE_Size RasterFont::printText(const char* text, size_t text_size,
 
                 if(letter_alpha != 0)
                 {
-                    font->drawGlyph(&cx,
+                    font->drawGlyphB(&cx,
                                     x + static_cast<int32_t>(offsetX + m_glyphOffsetX),
-                                    y + static_cast<int32_t>(offsetY + m_glyphOffsetY) - 2 + y_offset,
+                                    y + baseline + y_offset,
                                     font_size_use,
                                     (doublePixel ? 2 : 1),
                                     m_ttfOutlines,

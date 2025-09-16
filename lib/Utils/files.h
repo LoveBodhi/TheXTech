@@ -29,10 +29,11 @@
 
 struct SDL_RWops;
 
-#if defined(__GNUC__) && !defined(__llvm__) && !defined(__INTEL_COMPILER)
+#if defined(__WII__)
+#   define FILES_DISOWN_NEEDED 1
 #   define FILES_NODISCARD_ATTR [[nodiscard]]
 #else
-#   define FILES_NODISCARD_ATTR // Nothing!
+#   define FILES_NODISCARD_ATTR // Nothing
 #endif
 
 namespace Files
@@ -61,8 +62,10 @@ public:
             m_free_me = true;
         }
 
+#ifdef FILES_DISOWN_NEEDED
         // if the buffer is malloc-allocated, disowns it and allows the client to take management of it
         FILES_NODISCARD_ATTR void* disown();
+#endif
 
         inline bool valid() const
         {

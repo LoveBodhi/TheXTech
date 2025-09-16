@@ -110,7 +110,6 @@ public:
     using InputMethodProfile::Type;
 
     bool m_controllerProfile = false;
-    bool m_legacyProfile = false;
 
     // current settings
     bool m_simple_editor = true;
@@ -134,10 +133,16 @@ public:
 
     InputMethodProfile_Joystick();
 
+    enum InitAs
+    {
+        INIT_AS_DEFAULT = 0,
+        INIT_AS_ALT,
+        INIT_AS_WII_REMOTE,
+        INIT_AS_WII_REMOTE_WITH_NUNCHACK,
+    };
+
     void InitAsJoystick();
-    void InitAsController();
-    void ExpandAsJoystick();
-    void ExpandAsController();
+    void InitAsController(InitAs init_as);
     void SaveConfig_Legacy(IniProcessing *ctl);
     void LoadConfig_Legacy(IniProcessing *ctl);
 
@@ -185,7 +190,6 @@ class InputMethodType_Joystick : public InputMethodType
 {
 private:
     std::unordered_map<int, JoystickDevices *> m_availableJoysticks;
-    std::set<InputMethodProfile_Joystick *> m_hiddenProfiles; // owns unconverted legacy profiles
     std::unordered_map<std::string, InputMethodProfile *> m_lastProfileByGUID;
 
     InputMethodProfile *AllocateProfile() noexcept override;

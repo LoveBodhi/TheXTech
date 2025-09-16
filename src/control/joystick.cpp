@@ -26,6 +26,10 @@
 #include <SDL2/SDL_haptic.h>
 #include <SDL2/SDL_events.h>
 
+#ifdef VITA
+#    include <vitasdk.h>
+#endif
+
 #include <Utils/strings.h>
 #include <Logger/logger.h>
 
@@ -41,6 +45,102 @@
 
 namespace Controls
 {
+
+// hardcoded list of GUIDs that prefer alt (Japanese) menu control layout -- middle 16 bytes only
+static const char* s_alt_guids_16[] =
+{
+    "7e05000006030000", // Wii Classic Controller
+    "7e05000030030000", // Wii U Pro Controller
+    "7e05000006200000", // Switch 1 Joy-Con (L)
+    "7e05000007200000", // Switch 1 Joy-Con (R)
+    "7e05000008200000", // Switch 1 Joy-Cons
+    "7e05000009200000", // Switch 1 Pro Controller
+    "7e05000017200000", // Switch 1 SNES Controller
+    "7e05000069200000", // Switch 2 Pro Controller
+    "d620000013a70000", // PowerA Switch 1 Controller
+    "d620000011a70000", // PowerA Core Plus Switch 1 Controller
+    "4c69632050726f20", // Switch 1 Pro Controller (alt GUID)
+#ifdef __WIIU__ // Special GUIDs on Wii U
+    "5769692055204761", // Wii U GamePad (on Wii U)
+    "5769692055205072", // Wii U Pro Controller (on Wii U)
+    "57696920436c6173", // Wii Classic Controller (on Wii U)
+#endif
+#ifdef __SWITCH__ // Special GUIDs on Switch 1
+    "5377697463682043", // Switch 1 virtual controller
+#endif
+};
+
+static const char* s_alt_guids_32[] =
+{
+    "050000005769696d6f74652028313800", // Wii U Pro Controller (alt GUID)
+};
+
+// hardcoded list of Wii Remote GUIDs for special layout -- middle 16 bytes only
+static const char *s_wii_remote_guids_32[] =
+{
+    "050000005769696d6f74652028303000",
+    "050000007e0500000603000000060000",
+#ifdef __WIIU__
+    "000000005769692052656d6f74650000", // Wii Remote (on Wii U)
+#endif
+};
+
+static const char *s_wii_nunchack_guids_32[] =
+{
+#ifdef __WIIU__
+    "00000000576969204e756e6368756b00", // Wii Remote + Nunchack (on Wii U)
+    "0000bce1576969204e756e6368756b00", // Wii Remote + Nunchack (on Wii U)
+#endif
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // Dummy, remove if any non-Wii-U entries will be added
+};
+
+static bool s_AltControlsDefault(const std::string& guid)
+{
+    if(guid.size() != 32)
+        return false;
+
+    for(size_t i = 0; i < sizeof(s_alt_guids_32) / sizeof(const char*); i++)
+    {
+        if(SDL_memcmp(guid.c_str(), s_alt_guids_32[i], 32) == 0)
+            return true;
+    }
+
+    for(size_t i = 0; i < sizeof(s_alt_guids_16) / sizeof(const char*); i++)
+    {
+        if(SDL_memcmp(guid.c_str() + 8, s_alt_guids_16[i], 16) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+static bool s_WiiRemoteControlsDefault(const std::string& guid)
+{
+    if(guid.size() != 32)
+        return false;
+
+    for(size_t i = 0; i < sizeof(s_wii_remote_guids_32) / sizeof(const char*); i++)
+    {
+        if(SDL_memcmp(guid.c_str(), s_wii_remote_guids_32[i], 32) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+static bool s_WiiRemoteNunchackControlsDefault(const std::string& guid)
+{
+    if(guid.size() != 32)
+        return false;
+
+    for(size_t i = 0; i < sizeof(s_wii_nunchack_guids_32) / sizeof(const char*); i++)
+    {
+        if(SDL_memcmp(guid.c_str(), s_wii_nunchack_guids_32[i], 32) == 0)
+            return true;
+    }
+
+    return false;
+}
 
 /*====================================================*\
 || implementation for InputMethod_Joystick            ||
@@ -705,7 +805,7 @@ StatusInfo InputMethod_Joystick::GetStatus()
 // the job of this function is to initialize the class in a consistent state
 InputMethodProfile_Joystick::InputMethodProfile_Joystick()
 {
-    this->InitAsController();
+    this->InitAsController(INIT_AS_DEFAULT);
     this->m_showPowerStatus = false;
 }
 
@@ -761,7 +861,7 @@ void InputMethodProfile_Joystick::InitAsJoystick()
     this->m_cursor_keys[CursorControls::Buttons::Secondary].assign(KM_Key::JoyAxis, 5, 1);
 }
 
-void InputMethodProfile_Joystick::InitAsController()
+void InputMethodProfile_Joystick::InitAsController(InitAs init_as)
 {
     this->m_controllerProfile = true;
 
@@ -769,17 +869,69 @@ void InputMethodProfile_Joystick::InitAsController()
     this->m_keys[PlayerControls::Buttons::Down].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_DPAD_DOWN, 1);
     this->m_keys[PlayerControls::Buttons::Left].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_DPAD_LEFT, 1);
     this->m_keys[PlayerControls::Buttons::Right].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 1);
-#ifdef __WIIU__ // On Wii U, controls are swapped
-    this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
-    this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
-    this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
-    this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
-#else
-    this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
-    this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
-    this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
-    this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
+
+    if(init_as == INIT_AS_ALT)
+    {
+        this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
+        this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
+        this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
+        this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
+        this->m_altMenuControls = true;
+    }
+    else if(init_as == INIT_AS_WII_REMOTE)
+    {
+        this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
+        this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
+        this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
+        this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
+    }
+    else if(init_as == INIT_AS_WII_REMOTE_WITH_NUNCHACK)
+    {
+        this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
+        this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
+        this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
+        this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
+    }
+    else
+    {
+        this->m_keys[PlayerControls::Buttons::Jump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_A, 1);
+        this->m_keys[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_B, 1);
+        this->m_keys[PlayerControls::Buttons::Run].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_X, 1);
+        this->m_keys[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_Y, 1);
+
+#ifdef VITA
+        // Vita's layout under SDL is normal (Cross/A button is South), but Japanese Vitas do use the alt menu controls (Circle button advances in menus)
+        int enter_button = SCE_SYSTEM_PARAM_ENTER_BUTTON_CROSS;
+        sceAppUtilSystemParamGetInt(SCE_SYSTEM_PARAM_ID_ENTER_BUTTON, &enter_button);
+        if(enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE)
+            this->m_altMenuControls = true;
 #endif
+    }
+
+    const char *init_as_str;
+    switch(init_as)
+    {
+    default:
+        init_as_str = "Standard";
+        break;
+
+    case INIT_AS_ALT:
+        init_as_str = "Alt";
+        break;
+
+    case INIT_AS_WII_REMOTE:
+        init_as_str = "Wii Remote";
+        break;
+
+    case INIT_AS_WII_REMOTE_WITH_NUNCHACK:
+        init_as_str = "Wii Remote + Nunchuk";
+        break;
+    }
+
+    pLogDebug("Initializing controller with mode: [%s] controls and [%s] menus.",
+        init_as_str,
+        this->m_altMenuControls ? "Alt" : "Standard");
+
     this->m_keys[PlayerControls::Buttons::Drop].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_BACK, 1);
     this->m_keys[PlayerControls::Buttons::Start].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_START, 1);
 
@@ -791,8 +943,17 @@ void InputMethodProfile_Joystick::InitAsController()
     this->m_keys2[PlayerControls::Buttons::Down].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTY, 1);
     this->m_keys2[PlayerControls::Buttons::Left].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTX, -1);
     this->m_keys2[PlayerControls::Buttons::Right].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTX, 1);
-    this->m_keys2[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, 1);
-    this->m_keys2[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 1);
+
+    if(init_as == INIT_AS_WII_REMOTE_WITH_NUNCHACK)
+    {
+        this->m_keys2[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 1);
+        this->m_keys2[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, 1);
+    }
+    else
+    {
+        this->m_keys2[PlayerControls::Buttons::AltRun].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, 1);
+        this->m_keys2[PlayerControls::Buttons::AltJump].assign(KM_Key::CtrlButton, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 1);
+    }
 
     // clear all of the non-standard controls, then fill in some of them
     for(size_t i = 0; i < CursorControls::n_buttons; i++)
@@ -819,102 +980,6 @@ void InputMethodProfile_Joystick::InitAsController()
     this->m_cursor_keys[CursorControls::Buttons::CursorRight].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_RIGHTX, 1);
     this->m_cursor_keys[CursorControls::Buttons::Primary].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_TRIGGERRIGHT, 1);
     this->m_cursor_keys[CursorControls::Buttons::Secondary].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_TRIGGERLEFT, 1);
-}
-
-void InputMethodProfile_Joystick::ExpandAsJoystick()
-{
-    this->m_legacyProfile = false;
-    this->m_controllerProfile = false;
-
-    // controller keys are stored in m_keys, joystick in m_keys2
-    // copy joystick keys from m_keys2 to m_keys
-    this->m_keys[PlayerControls::Buttons::Up] = this->m_keys2[PlayerControls::Buttons::Up];
-    this->m_keys[PlayerControls::Buttons::Down] = this->m_keys2[PlayerControls::Buttons::Down];
-    this->m_keys[PlayerControls::Buttons::Left] = this->m_keys2[PlayerControls::Buttons::Left];
-    this->m_keys[PlayerControls::Buttons::Right] = this->m_keys2[PlayerControls::Buttons::Right];
-    this->m_keys[PlayerControls::Buttons::Jump] = this->m_keys2[PlayerControls::Buttons::Jump];
-    this->m_keys[PlayerControls::Buttons::AltJump] = this->m_keys2[PlayerControls::Buttons::AltJump];
-    this->m_keys[PlayerControls::Buttons::Run] = this->m_keys2[PlayerControls::Buttons::Run];
-    this->m_keys[PlayerControls::Buttons::AltRun] = this->m_keys2[PlayerControls::Buttons::AltRun];
-    this->m_keys[PlayerControls::Buttons::Drop] = this->m_keys2[PlayerControls::Buttons::Drop];
-    this->m_keys[PlayerControls::Buttons::Start] = this->m_keys2[PlayerControls::Buttons::Start];
-
-    // clear all of the old joystick keys that have been copied over
-    for(size_t i = 0; i < PlayerControls::n_buttons; i++)
-        this->m_keys2[i].assign(KM_Key::NoControl, -1, -1);
-
-    // this is needed because using the LStick was not configurable before
-    this->m_keys2[PlayerControls::Buttons::Up].assign(KM_Key::JoyAxis, 1, -1);
-    this->m_keys2[PlayerControls::Buttons::Down].assign(KM_Key::JoyAxis, 1, 1);
-    this->m_keys2[PlayerControls::Buttons::Left].assign(KM_Key::JoyAxis, 0, -1);
-    this->m_keys2[PlayerControls::Buttons::Right].assign(KM_Key::JoyAxis, 0, 1);
-
-    // clear all of the non-standard controllers, then fill in some of them
-    for(size_t i = 0; i < CursorControls::n_buttons; i++)
-    {
-        this->m_cursor_keys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_cursor_keys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    for(size_t i = 0; i < EditorControls::n_buttons; i++)
-    {
-        this->m_editor_keys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_editor_keys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    for(size_t i = 0; i < Hotkeys::n_buttons; i++)
-    {
-        this->m_hotkeys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_hotkeys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    this->m_cursor_keys[CursorControls::Buttons::CursorUp].assign(KM_Key::JoyAxis, 3, -1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorDown].assign(KM_Key::JoyAxis, 3, 1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorLeft].assign(KM_Key::JoyAxis, 2, -1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorRight].assign(KM_Key::JoyAxis, 2, 1);
-}
-
-void InputMethodProfile_Joystick::ExpandAsController()
-{
-    this->m_legacyProfile = false;
-    this->m_controllerProfile = true;
-
-    // controller keys are stored in m_keys, joystick in m_keys2
-    // no action needed for m_keys
-
-    // clear all of the old joystick keys, then fill in some of them
-    for(size_t i = 0; i < PlayerControls::n_buttons; i++)
-        this->m_keys2[i].assign(KM_Key::NoControl, -1, -1);
-
-    // this is needed because using the LStick was not configurable before
-    this->m_keys2[PlayerControls::Buttons::Up].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTY, -1);
-    this->m_keys2[PlayerControls::Buttons::Down].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTY, 1);
-    this->m_keys2[PlayerControls::Buttons::Left].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTX, -1);
-    this->m_keys2[PlayerControls::Buttons::Right].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_LEFTX, 1);
-
-    // clear all of the non-standard controllers, then fill in some of them
-    for(size_t i = 0; i < CursorControls::n_buttons; i++)
-    {
-        this->m_cursor_keys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_cursor_keys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    for(size_t i = 0; i < EditorControls::n_buttons; i++)
-    {
-        this->m_editor_keys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_editor_keys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    for(size_t i = 0; i < Hotkeys::n_buttons; i++)
-    {
-        this->m_hotkeys[i].assign(KM_Key::NoControl, -1, -1);
-        this->m_hotkeys2[i].assign(KM_Key::NoControl, -1, -1);
-    }
-
-    this->m_cursor_keys[CursorControls::Buttons::CursorUp].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_RIGHTY, -1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorDown].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_RIGHTY, 1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorLeft].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_RIGHTX, -1);
-    this->m_cursor_keys[CursorControls::Buttons::CursorRight].assign(KM_Key::CtrlAxis, SDL_CONTROLLER_AXIS_RIGHTX, 1);
 }
 
 bool InputMethodProfile_Joystick::PollPrimaryButton(ControlsClass c, size_t i)
@@ -1519,34 +1584,6 @@ void InputMethodProfile_Joystick::SaveConfig_Legacy(IniProcessing* ctl)
     }
 }
 
-void InputMethodProfile_Joystick::LoadConfig_Legacy(IniProcessing* ctl)
-{
-    std::string name;
-
-    for(size_t i = 0; i < PlayerControls::n_buttons; i++)
-    {
-        name = PlayerControls::GetButtonName_INI(i);
-        size_t orig_l = name.size();
-
-        ctl->read(name.replace(orig_l, std::string::npos, "-ctrl-type").c_str(),
-                  this->m_keys[i].type, this->m_keys[i].type);
-        ctl->read(name.replace(orig_l, std::string::npos, "-ctrl-id").c_str(),
-                  this->m_keys[i].id, this->m_keys[i].id);
-        ctl->read(name.replace(orig_l, std::string::npos, "-ctrl-val").c_str(),
-                  this->m_keys[i].val, this->m_keys[i].val);
-
-        ctl->read(name.replace(orig_l, std::string::npos, "-type").c_str(),
-                  this->m_keys2[i].type, this->m_keys2[i].type);
-        ctl->read(name.replace(orig_l, std::string::npos, "-id").c_str(),
-                  this->m_keys2[i].id, this->m_keys2[i].id);
-        ctl->read(name.replace(orig_l, std::string::npos, "-val").c_str(),
-                  this->m_keys2[i].val, this->m_keys2[i].val);
-    }
-
-    this->m_legacyProfile = true;
-    this->m_simple_editor = true;
-}
-
 size_t InputMethodProfile_Joystick::GetOptionCount_Custom()
 {
     return 1;
@@ -1602,6 +1639,59 @@ InputMethodType_Joystick::InputMethodType_Joystick()
     this->Name = "Joystick";
 
     SDL_JoystickEventState(SDL_ENABLE);
+
+#ifdef __WIIU__
+    // Wii Remote
+    SDL_GameControllerAddMapping("000000005769692052656d6f74650000,"
+                                 "Wii Remote,"
+                                 "crc:1d69,"
+                                 "x:b7,y:b6,"
+                                 "a:b0,b:b1,"
+                                 "back:b11,start:b10,"
+                                 "dpdown:b12,dpleft:b13,dpright:b15,dpup:b14,");
+
+    // Wii Remote + Nunchack
+    SDL_GameControllerAddMapping("00000000576969204e756e6368756b00,"
+                                 "Wii Remote + Nunchuk,"
+                                 "crc:bce1,"
+                                 "a:b0,b:b1,"
+                                 "x:b6,y:b7,"
+                                 "leftshoulder:b2,rightshoulder:b3,"
+                                 "lefttrigger:b8,righttrigger:b9,"
+                                 "back:b11,start:b10,"
+                                 "dpdown:b15,dpleft:b12,dpright:b14,dpup:b13,"
+                                 "leftstick:b4,rightstick:b5,"
+                                 "leftx:a0,lefty:a1,"
+                                 "rightx:a2,righty:a3,");
+
+    SDL_GameControllerAddMapping("0000bce1576969204e756e6368756b00,"
+                                 "Wii Remote + Nunchuk,"
+                                 "crc:bce1,"
+                                 "a:b0,b:b1,"
+                                 "x:b6,y:b7,"
+                                 "leftshoulder:b2,rightshoulder:b3,"
+                                 "lefttrigger:b8,righttrigger:b9,"
+                                 "back:b11,start:b10,"
+                                 "dpdown:b15,dpleft:b12,dpright:b14,dpup:b13,"
+                                 "leftstick:b4,rightstick:b5,"
+                                 "leftx:a0,lefty:a1,"
+                                 "rightx:a2,righty:a3,");
+#endif
+
+#ifdef __SWITCH__
+    // Sets the correct mapping for Switch controllers
+    SDL_GameControllerAddMapping("000038f853776974636820436f6e7400,"
+                                 "Switch Controller,"
+                                 "a:b0,b:b1,x:b2,y:b3,"
+                                 "back:b11,start:b10,"
+                                 "dpdown:b15,dpleft:b12,dpright:b14,dpup:b13,"
+                                 "leftshoulder:b6,rightshoulder:b7,"
+                                 "lefttrigger:b8,righttrigger:b9,"
+                                 "leftstick:b4,rightstick:b5,"
+                                 "leftx:a0,lefty:a1,"
+                                 "rightx:a2,righty:a3,");
+#endif
+
     int num = SDL_NumJoysticks();
 
     for(int i = 0; i < num; ++i)
@@ -1610,10 +1700,6 @@ InputMethodType_Joystick::InputMethodType_Joystick()
 
 InputMethodType_Joystick::~InputMethodType_Joystick()
 {
-    for(InputMethodProfile_Joystick* profile : this->m_hiddenProfiles)
-        delete profile;
-
-    this->m_hiddenProfiles.clear();
     this->m_lastProfileByGUID.clear();
 
     // A single pass would be much more efficient,
@@ -1808,25 +1894,18 @@ InputMethod* InputMethodType_Joystick::Poll(const std::vector<InputMethod*>& act
     if(found == this->m_lastProfileByGUID.end())
         found = this->m_lastProfileByGUID.find(active_joystick->guid);
 
-    if(found != this->m_lastProfileByGUID.end())
+    // and finally by middle 16 chars of GUID
+    if(found == this->m_lastProfileByGUID.end() && active_joystick->guid.size() == 32)
     {
-        method->Profile = found->second;
-        InputMethodProfile_Joystick* profile = dynamic_cast<InputMethodProfile_Joystick*>(found->second);
-
-        if(profile->m_legacyProfile)
+        for(found = this->m_lastProfileByGUID.begin(); found != this->m_lastProfileByGUID.end(); ++found)
         {
-            // expanding a legacy profile based on information from controller
-            profile->Name = method->Name + " P" + std::to_string(my_index + 1);
-
-            if(active_joystick->ctrl)
-                profile->ExpandAsController();
-            else
-                profile->ExpandAsJoystick();
-
-            this->m_profiles.push_back(method->Profile);
-            this->m_hiddenProfiles.erase(profile);
+            if(found->first.size() == 32 && memcmp(found->first.c_str() + 8, active_joystick->guid.c_str() + 8, 16) == 0)
+                break;
         }
     }
+
+    if(found != this->m_lastProfileByGUID.end())
+        method->Profile = found->second;
 
 #if 0
     // Inappropriate method that causes different types of controllers to share a profile
@@ -1858,7 +1937,37 @@ InputMethod* InputMethodType_Joystick::Poll(const std::vector<InputMethod*>& act
     if(!method->Profile)
     {
         if(active_joystick->ctrl)
+        {
             method->Profile = this->AddProfile();
+
+            // Detect whether alt controls are appropriate here given a hardcoded list of GUIDs.
+            if(s_AltControlsDefault(active_joystick->guid))
+            {
+                pLogInfo("New controller profile will use alt menu controls layout [Controller GUID: %s]", active_joystick->guid.c_str());
+
+                auto* p = dynamic_cast<InputMethodProfile_Joystick*>(method->Profile);
+                if(p)
+                    p->InitAsController(InputMethodProfile_Joystick::INIT_AS_ALT);
+            }
+            else if(s_WiiRemoteControlsDefault(active_joystick->guid))
+            {
+                pLogInfo("New controller profile will use Wii Remote controls layout [Controller GUID: %s]", active_joystick->guid.c_str());
+
+                auto* p = dynamic_cast<InputMethodProfile_Joystick*>(method->Profile);
+                if(p)
+                    p->InitAsController(InputMethodProfile_Joystick::INIT_AS_WII_REMOTE);
+            }
+            else if(s_WiiRemoteNunchackControlsDefault(active_joystick->guid))
+            {
+                pLogInfo("New controller profile will use Wii Remote with Nunchuk controls layout [Controller GUID: %s]", active_joystick->guid.c_str());
+
+                auto* p = dynamic_cast<InputMethodProfile_Joystick*>(method->Profile);
+                if(p)
+                    p->InitAsController(InputMethodProfile_Joystick::INIT_AS_WII_REMOTE_WITH_NUNCHACK);
+            }
+            else
+                pLogDebug("New controller profile will use standard menu controls layout [Controller GUID: %s]", active_joystick->guid.c_str());
+        }
         else
             method->Profile = this->AddOldJoystickProfile();
 
@@ -2185,30 +2294,23 @@ void InputMethodType_Joystick::SaveConfig_Custom(IniProcessing* ctl)
     std::string name = "last-profile-";
     int uuid_begin = (int)name.size();
 
+    // clear any old default controller profiles (keeping a copy of the set of keys in a stack-allocated vector)
+    std::vector<std::string> keys_to_clear = ctl->allKeys();
+    for(const std::string& key : keys_to_clear)
+    {
+        // delete any key with the prefix "last-profile-"
+        if(SDL_strncmp(key.c_str(), name.c_str(), name.size()) == 0)
+            ctl->clearValue(key.c_str());
+    }
+
     // set all default controller profiles
     for(auto it = m_lastProfileByGUID.begin(); it != m_lastProfileByGUID.end(); ++it)
     {
         auto loc = std::find(this->m_profiles.begin(), this->m_profiles.end(), it->second);
         size_t index = loc - this->m_profiles.begin();
 
-        if(index == this->m_profiles.size())
-        {
-            // this probably a legacy profile, let's check.
-            auto* p = dynamic_cast<InputMethodProfile_Joystick*>(it->second);
-
-            if(p && p->m_legacyProfile)
-            {
-                ctl->endGroup();
-                ctl->beginGroup("joystick-uuid-" + it->first);
-                p->SaveConfig_Legacy(ctl);
-                ctl->endGroup();
-                ctl->beginGroup(this->Name);
-            }
-        }
-        else
-        {
+        if(index != this->m_profiles.size())
             ctl->setValue(name.replace(uuid_begin, std::string::npos, it->first).c_str(), index);
-        }
     }
 }
 
@@ -2237,42 +2339,6 @@ void InputMethodType_Joystick::LoadConfig_Custom(IniProcessing* ctl)
     }
 
     ctl->endGroup();
-
-    // load legacy controller profiles
-    keys = ctl->childGroups();
-    keyNeed = "joystick-uuid-";
-
-    for(std::string& k : keys)
-    {
-        std::string::size_type r = k.find(keyNeed);
-
-        if(/*r != std::string::npos &&*/ r == 0)
-        {
-            std::string guid = k.substr(14); // length of "joystick-uuid-"
-
-            // once legacy controller has been converted, forget about it
-            if(this->m_lastProfileByGUID.find(guid) != this->m_lastProfileByGUID.end())
-                continue;
-
-            ctl->beginGroup(k);
-            auto* profile = new(std::nothrow) InputMethodProfile_Joystick;
-
-            if(profile)
-            {
-                profile->Type = this;
-                profile->LoadConfig_Legacy(ctl);
-                this->m_hiddenProfiles.insert(profile);
-                this->m_lastProfileByGUID[guid] = profile;
-                pLogDebug("Loaded legacy profile as '%s'.", guid.c_str());
-            }
-            else
-            {
-                pLogWarning("Could not allocate legacy profile (out of memory).");
-            }
-
-            ctl->endGroup();
-        }
-    }
 
     ctl->beginGroup(this->Name);
 }

@@ -32,6 +32,12 @@
 
 #include "logger_level.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#   define FORMAT_ATTRIBUTE_PRINTF_12  __attribute__ ((format (printf, 1, 2)))
+#else
+#   define FORMAT_ATTRIBUTE_PRINTF_12
+#endif
+
 extern struct PGE_LogSetup
 {
     //! The logging level
@@ -54,16 +60,28 @@ extern void CloseLog();
 extern "C"
 {
 #endif
-extern void pLogDebug(const char *format, ...);
-extern void pLogWarning(const char *format, ...);
-extern void pLogCritical(const char *format, ...);
-extern void pLogInfo(const char *format, ...);
-extern void pLogFatal(const char *format, ...);
+extern void pLogDebug(const char *format, ...) FORMAT_ATTRIBUTE_PRINTF_12;
+extern void pLogWarning(const char *format, ...) FORMAT_ATTRIBUTE_PRINTF_12;
+extern void pLogCritical(const char *format, ...) FORMAT_ATTRIBUTE_PRINTF_12;
+extern void pLogInfo(const char *format, ...) FORMAT_ATTRIBUTE_PRINTF_12;
+extern void pLogFatal(const char *format, ...) FORMAT_ATTRIBUTE_PRINTF_12;
+
+#define pLogDebugS(str) pLogDebug("%s", str)
+#define pLogWarningS(str) pLogWarning("%s", str)
+#define pLogCriticalS(str) pLogCritical("%s", str)
+#define pLogInfoS(str) pLogInfo("%s", str)
+#define pLogFatalS(str) pLogFatal("%s", str)
+
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef __cplusplus
+extern void pLogDebug(const std::string &line);
+extern void pLogWarning(const std::string &line);
+extern void pLogCritical(const std::string &line);
+extern void pLogInfo(const std::string &line);
+extern void pLogFatal(const std::string &line);
 extern std::string getLogFilePath();
 #endif
 

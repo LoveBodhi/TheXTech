@@ -140,6 +140,11 @@ endif()
 #endif()
 set(USE_SYSTEM_LIBS_DEFAULT OFF)
 
+
+if(UNIX)
+    option(PORTMASTER "Make a special build for PortMaster" OFF)
+endif()
+
 if(HAIKU OR NINTENDO_SWITCH OR NINTENDO_WII OR NINTENDO_WIIU OR XTECH_MACOSX_TIGER OR PORTMASTER)
     set(USE_SYSTEM_SDL2_DEFAULT ON)  # Should be used on Haiku, own SDL2 Haiku build on CMake is broken
 else()
@@ -211,7 +216,6 @@ option(THEXTECH_ENABLE_TTF_SUPPORT "Enable TTF fonts support (FreeType required)
 option(THEXTECH_CLI_BUILD "Minimal CLI build for testing and benchmarking on desktop platforms" OFF)
 option(THEXTECH_NO_SDL_BUILD "Do not use SDL in the CLI build; useful as a starting point for new ports" OFF)
 
-option(THEXTECH_ENABLE_NEW_USER_PATHS "Use new default paths for user directory (experimental)" OFF)
 option(THEXTECH_ENABLE_WIP_FEATURES "Enable experimental and incomplete features (disabled by default)" OFF)
 mark_as_advanced(THEXTECH_ENABLE_WIP_FEATURES)
 
@@ -219,7 +223,7 @@ option(THEXTECH_NO_BUILD_DATE "Disables the using of the build timestamp in orde
 
 option(THEXTECH_ENABLE_AUDIO_FX "Enable real-time audio effects support" ON)
 
-option(THEXTECH_FIXED_POINT "Experimental: use fixed-point arithmetic for gameplay logic" OFF)
+option(THEXTECH_FIXED_POINT "Experimental: use fixed-point arithmetic for gameplay logic" ON)
 
 option(ENABLE_ADDRESS_SANITIZER "Enable the Address Sanitizer GCC feature" OFF)
 
@@ -288,7 +292,8 @@ if(VITA)
     set(THEXTECH_BUILD_GL_DESKTOP_LEGACY OFF CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
 
-    # note: this needs to be removed, and USE_SYSTEM_SDL2 needs to be disabled, to test Vita GLESv2 support
+    # note: to test GLESv2 on Vita, remove the below line, install VitaGL with shader support and Northfear's SDL2 fork, and enable USE_SYSTEM_SDL2
+    # As of August 2025, Northfear's SDL2 fork invalidly reports the OpenGL profile as Compatibility instead of ES, and VitaGL doesn't support clearing buffers, and its shader transpiler is imperfect
     set(THEXTECH_BUILD_GL_ES_MODERN OFF CACHE BOOL "" FORCE)
 endif()
 
@@ -318,10 +323,6 @@ if(NINTENDO_WIIU)
     set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
 endif()
 
-if(UNIX)
-    option(PORTMASTER "Make a special build for PortMaster" OFF)
-endif()
-
 if(PORTMASTER)
     message("Special build for PortMaster.")
 
@@ -329,7 +330,6 @@ if(PORTMASTER)
     set(THEXTECH_BUILD_GL_DESKTOP_LEGACY OFF CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_ES_MODERN ON CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_ES_LEGACY OFF CACHE BOOL "" FORCE)
-    set(USE_SYSTEM_SDL2 ON CACHE BOOL "" FORCE)
     set(PGE_SHARED_SDLMIXER OFF CACHE BOOL "" FORCE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
@@ -373,9 +373,10 @@ if(EMSCRIPTEN)
 endif()
 
 if(NINTENDO_SWITCH)
-    set(THEXTECH_BUILD_GL_ES_MODERN      OFF CACHE BOOL "" FORCE)
+    set(THEXTECH_BUILD_GL_ES_MODERN      ON  CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_ES_LEGACY      OFF CACHE BOOL "" FORCE)
     set(THEXTECH_BUILD_GL_DESKTOP_LEGACY OFF CACHE BOOL "" FORCE)
+    set(THEXTECH_BUILD_GL_DESKTOP_MODERN OFF CACHE BOOL "" FORCE)
 endif()
 
 if(THEXTECH_NO_SDL_BUILD)
@@ -882,6 +883,7 @@ set(THEXTECH_SRC
     src/control/duplicate.cpp
     src/control/controls.cpp
     src/script/msg_preprocessor.cpp
+    src/script/msg_macros.cpp
     src/logic/object_graph.cpp
     src/change_res.cpp
     src/effect.cpp
@@ -1104,6 +1106,7 @@ else()
         src/core/sdl/events_sdl.cpp
         src/core/sdl/sdl_core.cpp
         src/core/power/power_sdl.cpp
+        lib/Graphics/xt_qoi.cpp
     )
 
     if(NOT THEXTECH_FORCE_FULLSCREEN AND NOT EMSCRIPTEN)
@@ -1202,6 +1205,7 @@ file(GLOB THEXTECH_HEADS_SRC
     lib/Graphics/*.h
     lib/tclap/*.h
     lib/fmt/*.h
+    lib/sorting/*.h
     lib/Archives/*.h
     lib/json/*.hpp
     src/*.h
@@ -1235,6 +1239,52 @@ file(GLOB THEXTECH_HEADS_SRC
     src/fontman/*.h
 )
 list(APPEND THEXTECH_SRC ${THEXTECH_HEADS_SRC})
+
+# ----------------------------------------------------
+# Non-buildable meta files such as change log, Readmes, etc.
+set(THEXTECH_EXTRA_RESOURCES
+    changelog.txt
+    README.md
+    README.RUS.md
+    README.ESP.md
+    resources/thextech.plist.in
+    resources/thextech.plist.tiger.in
+    resources/emscripten/manifest.json.in
+    resources/emscripten/shell_minimal.html
+    resources/emscripten/sw.js.in
+    resources/flatpak/appdata.xml.in
+    resources/flatpak/build.yml
+    resources/haiku/PackageInfo.in
+    resources/haiku/icon.hvif
+    resources/haiku/icon.rdef
+    resources/vita/frag.cgf
+    resources/vita/vert.cgv
+    resources/vita/sce_sys/icon0.png
+    resources/vita/sce_sys/livearea/contents/bg.png
+    resources/vita/sce_sys/livearea/contents/startup.png
+    resources/vita/sce_sys/livearea/contents/template.xml.in
+    resources/nds/icon.bmp
+    resources/switch/splash_logo.png
+    resources/switch/thextech-logo.jpg
+    resources/switch/thextech-logo.png
+    resources/tiger/TheXTechRun.in
+    resources/wii/icon.png
+    resources/wii/meta.xml.in
+    resources/wiiu/icon.png
+    resources/wiiu/meta.xml.in
+    resources/wiiu/wuhb-splash.png
+)
+
+list(APPEND THEXTECH_SRC ${THEXTECH_EXTRA_RESOURCES})
+set_source_files_properties(${THEXTECH_EXTRA_RESOURCES} PROPERTIES HEADER_FILE_ONLY ON)
+source_group("Resources" FILES ${THEXTECH_EXTRA_RESOURCES})
+
+# ------------------ Unit tests ----------------------
+option(WITH_UNIT_TESTS "Enable unit testing" OFF)
+if(WITH_UNIT_TESTS)
+    enable_testing()
+    add_subdirectory(test)
+endif()
 
 # ----------------------------------------------------
 
@@ -1392,6 +1442,10 @@ if(NINTENDO_SWITCH)
 endif()
 
 if(VITA)
+    if(THEXTECH_BUILD_GL_ES_MODERN)
+        target_link_libraries(A2XT_Int INTERFACE vitaGL vitashark)
+    endif()
+
     # Link Vita specific libraries to the generic interface.
     target_link_libraries(A2XT_Int INTERFACE ${VITA_ADDTL_LIBS})
 
@@ -1473,10 +1527,6 @@ endif()
 
 if(THEXTECH_BUILD_GL_ES_LEGACY)
     target_compile_definitions(thextech PRIVATE -DTHEXTECH_BUILD_GL_ES_LEGACY)
-endif()
-
-if(THEXTECH_ENABLE_NEW_USER_PATHS)
-    target_compile_definitions(thextech PRIVATE -DTHEXTECH_NEW_USER_PATHS)
 endif()
 
 if(THEXTECH_ENABLE_WIP_FEATURES)

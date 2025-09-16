@@ -23,6 +23,7 @@
 
 #include <json/json_rwops_input.hpp>
 #include <json/json.hpp>
+#include <fmt_format_ne.h>
 #include <algorithm>
 
 #ifdef __16M__
@@ -48,6 +49,7 @@
 #include "level_file.h"
 #include "main/level_save_info.h"
 #include "main/level_medals.h"
+#include "main/game_strings.h"
 #include "main/screen_progress.h"
 #include "main/game_strings.h"
 #include "main/game_info.h"
@@ -96,6 +98,13 @@ using callback_error = PGE_FileFormats_misc::callback_error;
 #else
 using callback_error = std::runtime_error;
 #endif
+
+[[ noreturn ]] void priv_FeatureLevelError(const std::string& errMsg, int reqFeatureLevel, int curFeatureLevel)
+{
+    // use MessageText as a temporary store -- the error gets processed before returning to game code control
+    MessageText = fmt::format_ne(errMsg, reqFeatureLevel, curFeatureLevel);
+    throw callback_error(MessageText.c_str());
+}
 
 void addMissingLvlSuffix(std::string &fileName)
 {
@@ -345,7 +354,7 @@ bool OpenLevelData(PGE_FileFormats_misc::TextInput& input, const std::string Fil
     LevelData lvl;
     if(!FileFormats::OpenLevelFileT(input, lvl))
     {
-        pLogWarning("Error of level \"%s\" file loading: %s (line %d).",
+        pLogWarning("Error of level \"%s\" file loading: %s (line %ld).",
                     FilePath.c_str(),
                     lvl.meta.ERROR_info.c_str(),
                     lvl.meta.ERROR_linenum);
@@ -365,7 +374,7 @@ bool OpenLevelData(PGE_FileFormats_misc::TextInput& input, const std::string Fil
 #ifdef PGEFL_CALLBACK_API
 void OpenLevel_Error(void*, FileFormatsError& e)
 {
-    pLogWarning("Error of level file loading: %s (line %d).",
+    pLogWarning("Error of level file loading: %s (line %ld).",
                 e.ERROR_info.c_str(),
                 e.ERROR_linenum);
 
@@ -396,9 +405,9 @@ bool OpenLevel_Head(void* userdata, LevelData& head)
 #endif
 
     if(reqFeatureLevel > engineFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update TheXTech.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldEngine, reqFeatureLevel, engineFeatureLevel);
     else if(reqFeatureLevel > g_gameInfo.contentFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update your game assets.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldGameAssets, reqFeatureLevel, g_gameInfo.contentFeatureLevel);
 
     // Level-wide extra settings
     if(!head.custom_params.empty())
@@ -655,7 +664,7 @@ bool OpenLevel_Event(void* userdata, LevelSMBX64Event& e)
 
         auto &event = Events[A];
 
-        event = Events_t();
+        event.reinit();
 
         event.Name = e.name;
         if(!e.msg.empty())
@@ -839,7 +848,7 @@ bool OpenLevel_Block(void* userdata, LevelBlock& b)
         {
             const char* error_string = "Block 186 or 457 has a destroy event. TheXTech does not match SMBX 1.3 logic in this case. This content cannot be played in Vanilla mode.";
 
-            pLogWarning(error_string);
+            pLogWarningS(error_string);
 
             if(g_config.playstyle == Config_t::MODE_VANILLA)
                 throw callback_error(error_string);
@@ -987,7 +996,7 @@ bool OpenLevel_NPC(void* userdata, LevelNPC& n)
         else if(find_Variant_Data(npc.Type))
         {
             if((n.special_data < 0) || (n.special_data >= 256))
-                pLogWarning("Attempted to load npc Type %d with out-of-range variant index %d", (int)npc.Type, (int)n.special_data);
+                pLogWarning("Attempted to load npc Type %d with out-of-range variant index %ld", (int)npc.Type, n.special_data);
             else
                 npc.Variant = (uint8_t)n.special_data;
         }

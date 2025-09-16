@@ -575,12 +575,14 @@ public:
         {
             rumble = 0,
             show_power_status,
+            alt_menu_controls,
             COUNT
         };
     };
 
     bool m_rumbleEnabled = false;
     bool m_showPowerStatus = false;
+    bool m_altMenuControls = false;
 
     // assume that the IniProcessing* is already in the correct group
     // saves/loads the shared options and calls the device-specific Save/LoadConfig
@@ -813,6 +815,9 @@ bool SetInputMethodProfile(int slot, InputMethodProfile *profile);
 bool SetInputMethodProfile(InputMethod *method, InputMethodProfile *profile);
 void ClearInputMethods();
 void RemoveNullInputMethods();
+
+// Resolve current menu controls
+MenuControls_t GetMenuControls(int limit_player = 0);
 
 // player is 1-indexed as an actual player here
 void Rumble(int player, int ms, float strength);
