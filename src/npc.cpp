@@ -3319,7 +3319,7 @@ void NPCSpecial(int A)
                     stillCollide = true;
             }
 
-            if(!npcHasFloor(npc) || !stillCollide)
+            if((!npcHasFloor(npc) && NPC[A].Special2 == 0) || !stillCollide)
             {
                 npc.Special = 2;
                 SkullRide(A, true);

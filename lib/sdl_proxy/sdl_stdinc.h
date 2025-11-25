@@ -43,6 +43,7 @@
 #define XTECH_sscanf sscanf
 
 #define SDL_vsnprintf  vsnprintf
+#define SDL_snprintf   snprintf
 
 #ifdef SDL_min
 #   undef SDL_min
@@ -82,6 +83,11 @@ inline uint32_t SDL_SwapBE32(uint32_t x)
                                 ((x >> 8) & 0x0000FF00) | (x >> 24)));
 }
 #endif
+
+
+#define SDL_GetError() "<SDL Error API is unavailable>"
+#define SDL_ClearError() (void)0
+inline void SDL_SetError(const char *fmt, ...) { (void)fmt; /* Do Nothing!*/ }
 
 
 template<class value_t>

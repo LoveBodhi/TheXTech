@@ -23,9 +23,19 @@
 #define RANGE_ARR_HPP
 
 #include <cstddef>
-#include <cstring>
+
 #ifndef RANGE_ARR_UNSAFE_MODE
-#include "sdl_proxy/sdl_assert.h"
+#include "core/xerror.h"
+#endif
+
+#if defined(__clang__)
+#   define RANGE_ARR_UNREACHABLE(cond) __builtin_assume(cond)
+#elif defined(__GNUC__)
+#   define RANGE_ARR_UNREACHABLE(cond) __builtin_unreachable()
+#elif defined(_MSC_VER)
+#   define RANGE_ARR_UNREACHABLE(cond) __assume(cond)
+#else
+#   define RANGE_ARR_UNREACHABLE(cond)
 #endif
 
 #define For(A, From, To) for(int A = From; A <= To; ++A)
@@ -109,7 +119,10 @@ public:
         SDL_assert_release(array); // When array won't initialize
 #   endif
         if(index > end || index < begin)
-            SDL_assert_release(false && "RangeArray out of range");
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index <= end || index >= begin);
+        }
 
         return *(array + index + offset);
     }
@@ -120,7 +133,10 @@ public:
         SDL_assert_release(array); // When array won't initialize
 #   endif
         if(index > end || index < begin)
-            SDL_assert_release(false && "RangeArray out of range");
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
 
         return *(array + index + offset);
     }
@@ -208,7 +224,10 @@ public:
         SDL_assert_release(array); // When array won't initialize
 #   endif
         if(index > end || index < begin)
-            SDL_assert_release(false && "RangeArray out of range");
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
 
         return *(array + index + offset);
     }
@@ -219,7 +238,10 @@ public:
         SDL_assert_release(array); // When array won't initialize
 #   endif
         if(index > end || index < begin)
-            SDL_assert_release(false && "RangeArray out of range");
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
 
         return *(array + index + offset);
     }

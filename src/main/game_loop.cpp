@@ -194,6 +194,7 @@ void GameLoop()
     if(g_gameLoopInterrupt.process_intro_events)
     {
         int A;
+
         for(A = 0; A <= maxEvents; ++A)
         {
             // excluded in SMBX 1.3
@@ -203,7 +204,7 @@ void GameLoop()
             if(A == EVENT_LEVEL_START || Events[A].AutoStart)
             {
                 eventindex_t resume_index;
-                resume_index = ProcEvent_Safe(false, A, 0, true);
+                resume_index = ProcEvent_Safe(false, A, 0, EventContext::InitSetup);
                 while(resume_index != EVENT_NONE)
                 {
                     g_gameLoopInterrupt.A = A;
@@ -216,7 +217,7 @@ resume_IntroEvents:
                     resume_index = g_gameLoopInterrupt.C;
                     g_gameLoopInterrupt.site = GameLoopInterrupt::None;
 
-                    resume_index = ProcEvent_Safe(true, resume_index, 0, true);
+                    resume_index = ProcEvent_Safe(true, resume_index, 0, EventContext::InitSetup);
                 }
             }
         }

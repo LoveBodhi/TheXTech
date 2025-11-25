@@ -22,12 +22,21 @@
 #include <cstring>
 
 #include <SDL2/SDL_rwops.h>
+#include "Logger/logger.h"
+#include "sdl_proxy/sdl_stdinc.h"
 #include "sdl_proxy/sdl_assert.h"
 
 #include "mbediso.h"
 
 #include "archives.h"
 #include "archives_priv.h"
+
+// define specific warnings here until we have full specific warning support via CMake
+#ifdef __PSP__
+#    define archives_pLogWarning pLogWarning
+#else
+#    define archives_pLogWarning D_pLogWarning
+#endif
 
 namespace Archives
 {
@@ -93,7 +102,10 @@ static int s_file_close_decref(SDL_RWops* stream)
 SDL_RWops* open_file(const char* name)
 {
     if(!is_prefix(name[0]))
+    {
+        archives_pLogWarning("Archives: Unsupported prefix at path [%s]", name);
         return nullptr;
+    }
 
     bool has_temp_ref = false;
     mbediso_file* f = nullptr;
@@ -109,7 +121,10 @@ SDL_RWops* open_file(const char* name)
             ++archive_path_end;
 
         if(archive_path_end == archive_path_start || *archive_path_end == '\0')
+        {
+            archives_pLogWarning("Archives: invalid composite path [%s]", name);
             return nullptr;
+        }
 
         ptrdiff_t archive_path_size = archive_path_end - archive_path_start;
 
@@ -118,10 +133,15 @@ SDL_RWops* open_file(const char* name)
         archive_path[archive_path_size] = '\0';
 
         bool mounted = mount_temp(archive_path);
-        free(archive_path);
 
         if(!mounted || !temp_mount)
+        {
+            archives_pLogWarning("Archives: Failed to mount archive [%s]", archive_path);
+            free(archive_path);
             return nullptr;
+        }
+
+        free(archive_path);
 
         const char* file_path_begin = archive_path_end + 1;
 
@@ -137,13 +157,17 @@ SDL_RWops* open_file(const char* name)
     }
 
     if(!f)
+    {
+        archives_pLogWarning("Archives: File [%s] doesn't exists", name);
         return nullptr;
+    }
 
     SDL_RWops* ret = SDL_AllocRW();
 
     if(!ret)
     {
         mbediso_fclose(f);
+        archives_pLogWarning("Archives: Failed attempt to open [%s]: SDL_RWops error: %s", name, SDL_GetError());
         return nullptr;
     }
 

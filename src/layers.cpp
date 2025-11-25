@@ -69,7 +69,7 @@ static SDL_INLINE bool equalCase(const std::string &x, const std::string &y)
     return (SDL_strcasecmp(x.c_str(), y.c_str()) == 0);
 }
 
-static SDL_INLINE bool equalCase(const char *x, const char *y)
+static SDL_INLINE ATTRIB_UNUSED bool equalCase(const char *x, const char *y)
 {
     return (SDL_strcasecmp(x, y) == 0);
 }
@@ -1202,7 +1202,7 @@ static inline bool s_initLegacyQScreen(Screen_t& screen, const int B, const Spee
 
 // Old functions:
 
-eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer, bool NoEffect)
+eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer, EventContext context)
 {
     if(index == EVENT_NONE || LevelEditor)
         return EVENT_NONE;
@@ -1296,16 +1296,33 @@ eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer,
                 int warped_plr = 0;
 
                 // warp other players to resized section, if not a reset or level start
-                bool do_warp = !is_reset && !evt.AutoStart && !equalCase(evt.Name.c_str(), "Level - Start");
+                bool do_warp = !is_reset && (index != EVENT_LEVEL_START);
+                // modern/classic logic: don't warp if it's the auto-run event loop
+                if(g_config.modern_section_change)
+                    do_warp &= (context != EventContext::InitSetup);
+                // vanilla logic: don't warp on any Autostart event (even if it isn't the first frame of the level)
+                else
+                    do_warp &= !evt.AutoStart;
+
                 s_testPlayersInSection(screen, B, do_warp, onscreen_plr, warped_plr);
 
                 bool set_qScreen_i = false;
 
+                // modern/classic: don't start any qScreen during initial setup frame
+                if(g_config.modern_section_change && context == EventContext::InitSetup)
+                {
+                    // do nothing
+                }
+                // don't start any qScreen for "Level - Start" event, on any frame (vanilla logic)
+                else if(index == EVENT_LEVEL_START)
+                {
+                    // do nothing
+                }
                 // start the modern qScreen animation
-                if(!equalCase(evt.Name.c_str(), "Level - Start") && g_config.modern_section_change)
+                else if(g_config.modern_section_change)
                     set_qScreen_i = s_initModernQScreen(screen, B, tempLevel, newLevel, onscreen_plr, warped_plr, is_reset);
                 // legacy qScreen animation
-                else if(!equalCase(evt.Name.c_str(), "Level - Start"))
+                else
                     set_qScreen_i = s_initLegacyQScreen(screen, B, tempLevel, newLevel, onscreen_plr);
 
                 if(set_qScreen_i)
@@ -1324,10 +1341,10 @@ eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer,
     }
 
     for(auto &l : evt.HideLayer)
-        HideLayer(l, NoEffect ? true : evt.LayerSmoke);
+        HideLayer(l, (context != EventContext::Normal) ? (true) : evt.LayerSmoke);
 
     for(auto &l : evt.ShowLayer)
-        ShowLayer(l, NoEffect ? true : evt.LayerSmoke);
+        ShowLayer(l, (context != EventContext::Normal) ? (true) : evt.LayerSmoke);
 
     for(auto &l : evt.ToggleLayer)
     {
@@ -1452,7 +1469,7 @@ event_resume:
             {
                 // this should receive tail-call optimization
                 // possibly request resuming at the child index (or its child, etc)
-                return ProcEvent_Safe(false, evt.TriggerEvent, whichPlayer, NoEffect);
+                return ProcEvent_Safe(false, evt.TriggerEvent, whichPlayer, context);
             }
         }
         else if(newEventNum < maxEvents)
@@ -1474,14 +1491,14 @@ event_resume:
     return EVENT_NONE;
 }
 
-void ProcEvent(eventindex_t index, int whichPlayer, bool NoEffect)
+void ProcEvent(eventindex_t index, int whichPlayer, EventContext context)
 {
-    eventindex_t resume_event = ProcEvent_Safe(false, index, whichPlayer, NoEffect);
+    eventindex_t resume_event = ProcEvent_Safe(false, index, whichPlayer, context);
 
     while(resume_event != EVENT_NONE)
     {
         PauseGame(PauseCode::None, 0);
-        resume_event = ProcEvent_Safe(true, resume_event, whichPlayer, NoEffect);
+        resume_event = ProcEvent_Safe(true, resume_event, whichPlayer, context);
     }
 }
 

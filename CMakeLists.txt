@@ -882,6 +882,7 @@ set(THEXTECH_SRC
     src/graphics/gfx_marquee.cpp
     src/control/duplicate.cpp
     src/control/controls.cpp
+    src/core/xerror.cpp
     src/script/msg_preprocessor.cpp
     src/script/msg_macros.cpp
     src/logic/object_graph.cpp
@@ -1307,6 +1308,9 @@ if(ANDROID)
     set(CMAKE_DEBUG_POSTFIX "")
     add_library(thextech SHARED ${THEXTECH_SRC} ${LIB_SRC})
     target_compile_options(thextech PRIVATE -fPIC)
+
+    target_link_options(thextech PUBLIC "-Wl,-z,max-page-size=16384")
+    target_link_options(thextech PUBLIC "-Wl,-z,common-page-size=16384")
 
     # Include own-built libraries into the APK
     set(APK_PACK_LIBS ${CMAKE_SOURCE_DIR}/android-project/thextech/jniLibs/${CMAKE_BUILD_TYPE_LOWER}/${ANDROID_ABI})
@@ -1983,3 +1987,13 @@ else()
         install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/thextech RENAME License.TheXTech.txt)
     endif()
 endif()
+
+# ================== Clean-up ==================
+add_custom_target(clean_external)
+add_custom_command(
+    TARGET clean_external POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/external/"
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/output/include"
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/output/lib"
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/output/share"
+)
