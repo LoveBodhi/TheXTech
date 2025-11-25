@@ -182,7 +182,7 @@ public:
     bool Visible = true;
 
     //! the logical width of the screen in pixels
-    int W = 800;
+    int W = 1056;
 
     //! the logical height of the screen in pixels
     int H = 600;
