@@ -1033,7 +1033,7 @@ int GameMain(const CmdLineSetup_t &setup)
             g_curLevelMedals.reset_checkpoint();
             WorldPlayer[1].Frame = 0;
             cheats_clearBuffer();
-            LevelBeatCode = 0;
+            LevelBeatCode = BEATCODE_NONE;
             curWorldLevel = 0;
 
             lunaReset();
@@ -1585,13 +1585,13 @@ int GameMain(const CmdLineSetup_t &setup)
             }
 
             // store to level save info if level won
-            if(LevelBeatCode > 0 || !GoToLevel.empty())
+            if((LevelBeatCode > 0 && LevelBeatCode != BEATCODE_GAME_COMPLETE) || !GoToLevel.empty())
             {
                 CommitBeatCode(LevelBeatCode);
                 g_curLevelMedals.commit();
             }
             // otherwise, reset the medal count
-            else
+            else if(LevelBeatCode != BEATCODE_GAME_COMPLETE)
                 g_curLevelMedals.on_all_dead();
 
             Record::EndRecording();
@@ -1616,12 +1616,12 @@ int GameMain(const CmdLineSetup_t &setup)
                 if(LevelBeatCode >= 0)
                 {
                     LevelSelect = false;
-                    LevelBeatCode = -2; // checked in PauseScreen::Init()
+                    LevelBeatCode = BEATCODE_RESTART; // checked in PauseScreen::Init()
                     PauseGame(PauseCode::PauseScreen);
                 }
 
                 // check that we are still restarting (it could have been canceled above)
-                if(LevelBeatCode == 0 || LevelBeatCode == -2)
+                if(LevelBeatCode == BEATCODE_NONE || LevelBeatCode == BEATCODE_RESTART)
                 {
                     GameThing();
                     zTestLevel(setup.testMagicHand || editorScreen.test_magic_hand, setup.interprocess); // Restart level
@@ -1663,7 +1663,7 @@ int GameMain(const CmdLineSetup_t &setup)
                     return 0;
                 }
 
-                LevelBeatCode = 0;
+                LevelBeatCode = BEATCODE_NONE;
 
 //                If nPlay.Online = False Then
 //                    OpenLevel FullFileName
@@ -1945,7 +1945,7 @@ void UpdateMacro()
 
             if((!is_cheat && LevelMacroCounter >= 100) || (is_cheat && LevelMacroCounter >= 316))
             {
-                LevelBeatCode = 1;
+                LevelBeatCode = BEATCODE_CARD_ROULETTE;
                 LevelMacro = LEVELMACRO_OFF;
                 LevelMacroCounter = 0;
                 EndLevel = true;
@@ -1976,7 +1976,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 460)
         {
-            LevelBeatCode = 2;
+            LevelBeatCode = BEATCODE_QUESTION_SPHERE;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
@@ -2010,7 +2010,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= keyholeMax) /*300*/
         {
-            LevelBeatCode = 4;
+            LevelBeatCode = BEATCODE_KEYHOLE;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroWhich = 0;
@@ -2044,7 +2044,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 300)
         {
-            LevelBeatCode = 5;
+            LevelBeatCode = BEATCODE_CRYSTAL_BALL;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
@@ -2087,6 +2087,9 @@ void UpdateMacro()
             if(!TestLevel)
             {
                 BeatTheGame = true;
+                // new level beat code 15: beat the game (exclusive to new level save info -- does not open any exits)
+                CommitBeatCode(BEATCODE_GAME_COMPLETE);
+                g_curLevelMedals.commit();
                 SaveGame();
                 GameOutro = true;
                 MenuMode = MENU_INTRO;
@@ -2121,7 +2124,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 300)
         {
-            LevelBeatCode = 7;
+            LevelBeatCode = BEATCODE_STAR;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
             EndLevel = true;
@@ -2189,7 +2192,8 @@ void UpdateMacro()
         {
             // LEVELMACRO_GOAL_TAPE_EXIT = 7 -> 8
             // LEVELMACRO_FLAG_EXIT = 8 -> 9
-            LevelBeatCode = (LevelMacro + 1);
+            // LEVELMACRO_ALT_FLAG_EXIT = 9 -> 10 (reserved)
+            LevelBeatCode = (LevelBeatCode_t)(LevelMacro + 1);
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
             EndLevel = true;
