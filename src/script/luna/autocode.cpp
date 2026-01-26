@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1202,8 +1202,8 @@ void Autocode::Do(bool init)
             Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Init:  %zu", gAutoMan.m_InitAutocodes.size()), 3, 50, 300));
             Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Codes: %zu", gAutoMan.m_Autocodes.size()), 3, 50, 320));
             Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Queue: %zu", gAutoMan.m_CustomCodes.size()), 3, 50, 340));
-            Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Sprites: %zu", gSpriteMan.CountSprites()), 3, 50, 360));
-            Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("BlueePrints: %zu", gSpriteMan.CountBlueprints()), 3, 50, 380));
+            Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Sprites: %d", gSpriteMan.CountSprites()), 3, 50, 360));
+            Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("BlueePrints: %d", gSpriteMan.CountBlueprints()), 3, 50, 380));
             Renderer::Get().AddOp(new RenderStringOp(fmt::sprintf_ne("Components: %zu", gSpriteMan.m_ComponentList.size()), 3, 50, 400));
 
             // some stats of lunacell were printed here

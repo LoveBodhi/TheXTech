@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -398,7 +398,9 @@ void treeTempBlockQuery(std::vector<BaseRef_t>& out,
 
     s_NPCsToTempBlocks(out);
 
-    s_temp_block_table.query(out, loc);
+    // this table is empty unless an NPC crossed a boundary during this frame
+    if(s_temp_block_table.member_rects.size() != 0)
+        s_temp_block_table.query(out, loc);
 
 
     if(sort_mode == SORTMODE_COMPAT)
@@ -598,11 +600,11 @@ void treeNPCAdd(NPCRef_t obj)
     s_npc_table.insert(obj);
 }
 
-void treeNPCUpdate(NPCRef_t obj)
+bool treeNPCUpdate(NPCRef_t obj)
 {
     SDL_assert_release((int)obj > 0);
 
-    s_npc_table.update(obj);
+    return s_npc_table.update(obj);
 }
 
 void treeNPCSplitTempBlock(NPCRef_t obj)

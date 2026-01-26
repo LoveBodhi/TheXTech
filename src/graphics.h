@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ void doShakeScreenClear();
 void UpdateGraphics2(bool skipRepaint = false);
 // Unpack all visible lazily-loaded graphics
 void GraphicsLazyPreLoad();
+// Draws the black screen (A final screen clean-up before quitting, even frame-skip is enabled)
+void GraphicsClearScreen();
 // Public Sub UpdateGraphics() 'This draws the graphic to the screen when in a level/game menu/outro/level editor
 // This draws the graphic to the screen when in a level/game menu/outro/level editor
 void UpdateGraphics(bool skipRepaint = false);
@@ -154,10 +156,14 @@ void UpdateGraphicsFatalAssert();
 // Public Sub DrawBackground(S As Integer, Z As Integer) 'draws the background to the screen
 // draws the background to the screen
 void DrawBackground(int S, int Z);
+
+// these were removed, and their logic is now incorporated into RenderTexturePlayer.
+
 // Public Sub PlayerWarpGFX(A As Integer, tempLocation As Location, X2 As Single, Y2 As Single)
-void PlayerWarpGFX(int A, IntegerLocation_t &tempLocation, int &X2, int &Y2);
+// void PlayerWarpGFX(int A, IntegerLocation_t &tempLocation, int &X2, int &Y2);
 // Public Sub NPCWarpGFX(A As Integer, tempLocation As Location, X2 As Single, Y2 As Single)
-void NPCWarpGFX(int A, IntegerLocation_t &tempLocation, int &X2, int &Y2);
+// void NPCWarpGFX(int A, IntegerLocation_t &tempLocation, int &X2, int &Y2);
+
 // Public Sub ChangeScreen() 'change from fullscreen to windowed mode
 // change from fullscreen to windowed mode
 void ChangeScreen();
@@ -250,7 +256,7 @@ void DrawCycloneAccessory(int Z, const Player_t& p, int cX, int tY, XTColor c);
 // Public Sub ScreenShot()
 void ScreenShot();
 // Public Sub DrawFrozenNPC(Z As Integer, A As Integer)
-void DrawFrozenNPC(int Z, int A);
+void DrawFrozenNPC(num_t camX, num_t camY, int A);
 // NEW: draw wings for an NPC at a particular location
 void DrawNPCWings(const NPC_t& n, int sX, int sY, XTColor cn);
 

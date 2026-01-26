@@ -24,6 +24,15 @@
 #include "main/game_strings.h"
 #include "main/speedrunner.h"
 
+#include "control/controls_methods.h" // to cancel keyboard's double-click fullscreen
+
+static inline void s_cancelDoubleClick()
+{
+#ifdef KEYBOARD_H
+    Controls::g_cancelDoubleClick = true;
+#endif
+}
+
 namespace ConnectScreen
 {
 
@@ -242,11 +251,18 @@ static void s_logRecentChars()
     // reset recent chars to 0
     s_recent_char = {};
 
-    // update
-    for(int i = 0; i < maxLocalPlayers; i++)
+    // update recent characters
+    for(size_t i = 0; i < maxLocalPlayers; i++)
     {
         if(s_players[i].m_state != PlayerState::Disconnected)
             s_recent_char[i] = l_screen->charSelect[i];
+    }
+
+    // mark input methods as used
+    for(Controls::InputMethod* method : Controls::g_InputMethods)
+    {
+        if(method)
+            method->used_for_player = true;
     }
 
     // if controls dirty, save them
@@ -386,7 +402,7 @@ void MainMenu_Start(int minPlayers)
     for(int i = 0; i < maxLocalPlayers; i++)
         l_screen->charSelect[i] = 0;
 
-    if(!(g_forceCharacter && SelectWorld[selWorld].highlight && SelectWorld[selWorld].blockChar[s_recent_char[0]]))
+    if(!(g_forceCharacter && SelectWorld[selWorld].blockChar[s_recent_char[0]]))
         s_InitBlockCharacter();
 
     for(int i = 0; i < maxLocalPlayers; i++)
@@ -511,6 +527,8 @@ void PlayerBox::Init()
     else
     {
         l_screen->charSelect[p] = s_recent_char[p];
+        if(l_screen->charSelect[p] == 0)
+            l_screen->charSelect[p] = p + 1;
         ValidateChar(true);
     }
 }
@@ -539,7 +557,7 @@ bool PlayerBox::CharAvailable(int c, bool ghost_mode)
         if(i == p)
             continue;
 
-        if(l_screen->charSelect[i] == c)
+        if(l_screen->charSelect[i] == c && !(s_context == Context::MainMenu && MenuMode == MENU_CHARACTER_SELECT_NEW_BM) && !g_forceCharacter)
             return false;
     }
 
@@ -1225,6 +1243,7 @@ bool PlayerBox::MouseItem(int i)
 
     if(MenuMouseRelease && SharedCursor.Primary)
     {
+        s_cancelDoubleClick();
         MenuMouseRelease = false;
         return Do();
     }
@@ -1698,6 +1717,7 @@ int PlayerBox::Mouse_Render(bool render, int x, int y, int w, int h)
 
             if(MenuMouseRelease && SharedCursor.Primary)
             {
+                s_cancelDoubleClick();
                 MenuMouseRelease = false;
                 return Do();
             }
@@ -2148,16 +2168,33 @@ int PlayerBox::Logic()
 
     const Controls_t& c = Controls::g_RawControls[p];
 
+    bool c_Do, c_Back, c_AltDo, c_AltBack;
+
+    if(p < (int)Controls::g_InputMethods.size() && Controls::g_InputMethods[p] && Controls::g_InputMethods[p]->Profile && Controls::g_InputMethods[p]->Profile->m_altMenuControls)
+    {
+        c_Do = c.AltJump;
+        c_Back = c.Jump || c.Run;
+        c_AltDo = c.AltRun;
+        c_AltBack = c.Run;
+    }
+    else
+    {
+        c_Do = c.Jump;
+        c_Back = c.Run || c.AltJump;
+        c_AltDo = c.AltJump;
+        c_AltBack = c.AltRun;
+    }
+
     if(m_just_added)
     {
         // play drop item noise?
         bool play_noise = (s_context != Context::LegacyMenu);
 
         // block back if a new-added player
-        if((int)Controls::g_InputMethods.size() > s_minPlayers && (c.Run || l_SharedControls.MenuBack))
+        if((int)Controls::g_InputMethods.size() > s_minPlayers && (c_Back || l_SharedControls.MenuBack))
             m_input_ready = false;
         // if pressing back, don't play drop item noise
-        else if(c.Run || l_SharedControls.MenuBack)
+        else if(c_Back || l_SharedControls.MenuBack)
             play_noise = false;
 
         // if about to move cursor, don't play drop item noise
@@ -2165,7 +2202,7 @@ int PlayerBox::Logic()
             play_noise = false;
 
         // don't allow going forwards at main menu
-        if(s_context == Context::MainMenu && m_input_ready && (c.Jump || c.Start))
+        if(s_context == Context::MainMenu && m_input_ready && (c_Do || c.Start))
             m_input_ready = false;
 
         if(play_noise)
@@ -2197,8 +2234,8 @@ int PlayerBox::Logic()
             || (m_konami_bits == 5 && c.Right)
             || (m_konami_bits == 6 && c.Left)
             || (m_konami_bits == 7 && c.Right)
-            || (m_konami_bits == 8 && c.AltRun)
-            || (m_konami_bits == 9 && c.AltJump))
+            || (m_konami_bits == 8 && c_AltBack)
+            || (m_konami_bits == 9 && c_AltDo))
         {
             m_konami_bits++;
 
@@ -2301,7 +2338,7 @@ int PlayerBox::Logic()
             m_marquee_state.reset_width();
             m_input_ready = false;
         }
-        else if(c.Run)
+        else if(c_Back)
             m_menu_item += 1;
         else if(m_menu_item >= 0)
             m_menu_item -= 2;
@@ -2333,12 +2370,12 @@ int PlayerBox::Logic()
 
         return 0;
     }
-    else if(c.Run || (Is1P() && l_SharedControls.MenuBack))
+    else if(c_Back || (Is1P() && l_SharedControls.MenuBack))
     {
         if(Back())
             return -1;
     }
-    else if(c.Jump || c.Start || (Is1P() && l_SharedControls.MenuDo))
+    else if(c_Do || c.Start || (Is1P() && l_SharedControls.MenuDo))
     {
         if(Do())
         {

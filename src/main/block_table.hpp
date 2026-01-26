@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -682,7 +682,7 @@ struct table_t : public base_table_t
         member_rects.erase(it);
     }
 
-    void update(MyRef_t b)
+    bool update(MyRef_t b)
     {
         Location_t loc = extract_loc<MyRef_t>(b);
 
@@ -697,7 +697,7 @@ struct table_t : public base_table_t
                 && it->second.t == rect.t
                 && it->second.b == rect.b)
             {
-                return;
+                return false;
             }
 
             base_table_t::erase(b, it->second);
@@ -705,10 +705,12 @@ struct table_t : public base_table_t
 
         // ignore improper rects
         if(loc.Width < 0 || loc.Height < 0)
-            return;
+            return true;
 
         member_rects[b] = rect;
         base_table_t::insert(b, rect);
+
+        return true;
     }
 
     void update_layer(MyRef_t b)

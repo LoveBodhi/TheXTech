@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,10 +41,10 @@ void RenderRectOp::Draw(Renderer *renderer)
     int sx1 = this->x1, sy1 = this->y1, sx2 = this->x2, sy2 = this->y2;
     if(sceneCoords)
     {
-        sx1 -= vScreen[renderer->GetCameraIdx()].CameraAddX();
-        sy1 -= vScreen[renderer->GetCameraIdx()].CameraAddY();
-        sx2 -= vScreen[renderer->GetCameraIdx()].CameraAddX();
-        sy2 -= vScreen[renderer->GetCameraIdx()].CameraAddY();
+        sx1 -= vScreen[renderer->GetCameraIdx()].CameraAddX_i();
+        sy1 -= vScreen[renderer->GetCameraIdx()].CameraAddY_i();
+        sx2 -= vScreen[renderer->GetCameraIdx()].CameraAddX_i();
+        sy2 -= vScreen[renderer->GetCameraIdx()].CameraAddY_i();
     }
     else
     {

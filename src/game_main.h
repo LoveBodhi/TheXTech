@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ void SetupPhysics();
 void initAll();
 
 //! Report the failure to load a level, pausing the game with a message box
-void ReportLoadFailure(const std::string& filename);
+void ReportLoadFailure(const std::string& filename, bool isIPC = false);
 
 //! NEW: (re)load all file-based assets from the current asset pack directory
 void MainLoadAll();
@@ -89,7 +89,7 @@ void FindLevels();
 
 void FindSaves();
 
-extern std::string makeGameSavePath(std::string episode, std::string world, std::string saveFile);
+extern std::string makeGameSavePath(std::string episode, std::string saveFile);
 
 void SaveGame();
 

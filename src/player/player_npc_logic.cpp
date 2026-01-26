@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -371,7 +371,6 @@ void PlayerNPCLogic(int A, bool& tempSpring, bool& tempShell, int& MessageNPC, c
                                         for(int i = 0; i < 2; i++)
                                         {
                                             numNPCs++;
-                                            NPC[numNPCs] = NPC_t();
                                             NPC[numNPCs].Active = true;
                                             NPC[numNPCs].TimeLeft = 100;
                                             NPC[numNPCs].Section = Player[A].Section;
@@ -1275,7 +1274,13 @@ void PlayerNPCLogic(int A, bool& tempSpring, bool& tempShell, int& MessageNPC, c
     }
     else
     {
-        if(Player[A].StandingOnNPC != 0)
+        // Vanilla bugfix: the player is normally forced to stay on a moving NPC by allowing its downwards speed to reach the terminal velocity (12).
+        // And then this code "unsets" that extreme downwards speed. But if the player's SpeedY has been changed since that time, unexpected things can happen:
+        // * If it became negative (upwards), then the player will clip downward through the moving NPC here (by subtracting that upwards value from the Y coordinate). This occurs when Char5 is hurt on Mushroom Heights in Princess Cliche.
+        // * If the player hit ground, then the player's speed should now be zero. But this will reset it to being downward, possibly allowing downward clipping. This occurs with NPCID_CHECKER_PLATFORM in Frozen Valley in The Fallen Spirits.
+        // * This fix shouldn't apply to moving blocks (which have negative NPC indexes) because the player's speed is sometimes set to 0 or 1 while on a moving block, and in those cases this code helps the player keep moving with the block. (Check with Autumn Area in Marathon: ATWAB.)
+        // * Since v1.3.7.2: this fix shouldn't apply when the player would be pushed upwards by staying with the NPC (instead of downwards). This replaces the hardcoded check from v1.3.7.1 where the fix required the player's speed to be less than 8 (NPC terminal velocity). (Fixes running on series of NPCID_FALL_BLOCK_RED with gaps.)
+        if(Player[A].StandingOnNPC != 0 && !(Player[A].StandingOnNPC > 0 && g_config.fix_player_downward_clip && Player[A].Location.SpeedY < NPC[Player[A].StandingOnNPC].Location.SpeedY))
         {
             if(Player[A].StandingOnNPC < 0)
                 Player[A].Location.SpeedX += NPC[Player[A].StandingOnNPC].Location.SpeedX;

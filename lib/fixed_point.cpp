@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,11 +71,11 @@ num_t num_t::times(num_t o) const
     uint64_t frac_i_times_frac_o_32 = (uint64_t)frac_i * frac_o;
 
     // banker's rounding
-    int64_t frac_i_times_frac_o_round = (frac_i_times_frac_o_32 + ((int64_t)1 << 31));
-    if((frac_i_times_frac_o_round & 0xFFFFFFFFLL) == 0)
+    uint64_t frac_i_times_frac_o_round = (frac_i_times_frac_o_32 + ((uint64_t)1 << 31));
+    if((frac_i_times_frac_o_round & 0xFFFFFFFFULL) == 0)
     {
-        if(frac_i_times_frac_o_round & 0x100000000LL)
-            frac_i_times_frac_o_round -= 0x100000000LL;
+        if(frac_i_times_frac_o_round & 0x100000000ULL)
+            frac_i_times_frac_o_round -= 0x100000000ULL;
     }
 
     int64_t frac_i_times_frac_o = frac_i_times_frac_o_round >> 32;

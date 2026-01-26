@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "../core/render.h"
 #include "../core/events.h"
 #include "../controls.h"
+#include "../main/game_strings.h" // For g_gameStrings.loaderLoading strign
 #include "pge_delay.h"
 #include "npc_id.h"
 #include "message.h"
@@ -185,7 +186,7 @@ static void drawEnterScreen(Player_t tempPlayer[maxLocalPlayers])
     }
 
     if(TestLevel)
-        SuperPrintScreenCenter("LOADING...", 3, XRender::TargetH / 2 + 32);
+        SuperPrintScreenCenter(g_gameStrings.loaderLoading, 3, XRender::TargetH / 2 + 32);
     else
         DrawLives(XRender::TargetW / 2 - 14, XRender::TargetH / 2 + 31, Lives, g_100s);
 

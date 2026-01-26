@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -322,6 +322,8 @@ InputMethodProfile_3DS::InputMethodProfile_3DS()
     this->m_editor_keys[EditorControls::Buttons::TestPlay] = KEYID_START;
 
     this->m_hotkeys[Hotkeys::Buttons::VanillaCam] = KEYID_L;
+
+    this->m_altMenuControls = true;
 }
 
 bool InputMethodProfile_3DS::PollPrimaryButton(ControlsClass c, size_t i)

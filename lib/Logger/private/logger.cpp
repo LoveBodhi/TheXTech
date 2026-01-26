@@ -1,6 +1,6 @@
 /*
  * Moondust, a free game engine for platform game making
- * Copyright (c) 2014-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2014-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This software is licensed under a dual license system (MIT or GPL version 3 or later).
  * This means you are free to choose with which of both licenses (MIT or GPL version 3 or later)
@@ -236,4 +236,29 @@ void pLogInfo(const char *format, ...)
     va_start(arg, format);
     pLogGeneric(PGE_LogLevel::Info, "Info", format, arg);
     va_end(arg);
+}
+
+void pLogDebug(const std::string &line)
+{
+    pLogDebug("%s", line.c_str());
+}
+
+void pLogWarning(const std::string &line)
+{
+    pLogWarning("%s", line.c_str());
+}
+
+void pLogCritical(const std::string &line)
+{
+    pLogCritical("%s", line.c_str());
+}
+
+void pLogInfo(const std::string &line)
+{
+    pLogInfo("%s", line.c_str());
+}
+
+void pLogFatal(const std::string &line)
+{
+    pLogFatal("%s", line.c_str());
 }

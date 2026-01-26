@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -279,12 +279,13 @@ CursorControls_t SharedCursor;
 
 bool SharedPause;
 bool SharedPauseLegacy;
+bool SharedPauseForce;
 
 // RangeArrI<int, 1, numSounds, 0> Sound;
 RangeArrI<vbint_t, 1, numSounds, 0> SoundPause;
 bool ErrorQuit = false;
 bool EndLevel = false;
-int LevelMacro = LEVELMACRO_OFF;
+LevelMacro_t LevelMacro = LEVELMACRO_OFF;
 int LevelMacroWhich = 0;
 int LevelMacroCounter = 0;
 bool CanWallJump = false;
@@ -313,7 +314,7 @@ int g_100s = 0;
 bool LevelSelect = false;
 bool LevelRestartRequested = false;
 RangeArr<WorldPlayer_t, 0, 1> WorldPlayer;
-int LevelBeatCode = 0;
+LevelBeatCode_t LevelBeatCode = BEATCODE_NONE;
 int curWorldLevel = 0;
 int curWorldMusic = 0;
 std::string curWorldMusicFile;
@@ -342,9 +343,9 @@ bool BeatTheGame = false;
 //bool FrameSkip = false;
 //double GoalTime = 0.0;
 //double overTime = 0.0;
-int worldCurs = 0;
-int minShow = 0;
-int maxShow = 0;
+// int worldCurs = 0;
+// int minShow = 0;
+// int maxShow = 0;
 
 int ReturnWarp = 0;
 int ReturnWarpSaved = 0;

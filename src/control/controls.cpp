@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,6 +148,7 @@ void Hotkeys::Activate(size_t i, int player)
 
     case Buttons::EnterCheats:
         l_SharedControls.Pause = true;
+        l_SharedControls.ForcePause = true;
         PauseScreen::UnlockCheats();
         return;
 
@@ -208,6 +209,8 @@ void InputMethodProfile::SaveConfig_All(IniProcessing* ctl)
     if(this->Type->PowerStatusSupported())
         ctl->setValue("show-power-status", this->m_showPowerStatus);
 
+    ctl->setValue("alt-menu-controls", this->m_altMenuControls);
+
     this->SaveConfig(ctl);
 }
 
@@ -218,6 +221,9 @@ void InputMethodProfile::LoadConfig_All(IniProcessing* ctl)
 
     if(this->Type->PowerStatusSupported())
         ctl->read("show-power-status", this->m_showPowerStatus, this->m_showPowerStatus);
+
+    // defaults to false to avoid changes when users upgrade from earlier versions of TheXTech
+    ctl->read("alt-menu-controls", this->m_altMenuControls, false);
 
     this->LoadConfig(ctl);
 }
@@ -253,8 +259,10 @@ const char* InputMethodProfile::GetOptionName(size_t i)
 
     if(i == CommonOptions::rumble)
         return g_mainMenu.controlsOptionRumble.c_str();
-    else if(i == CommonOptions::show_power_status) // -V547 Should be here to fail when adding new enum fields
+    else if(i == CommonOptions::show_power_status)
         return g_mainMenu.controlsOptionBatteryStatus.c_str();
+    else if(i == CommonOptions::alt_menu_controls) // -V547 Should be here to fail when adding new enum fields
+        return g_mainMenu.controlsOptionAltMenuControls.c_str();
     else
         return nullptr;
 }
@@ -279,12 +287,19 @@ const char* InputMethodProfile::GetOptionValue(size_t i)
         else
             return g_mainMenu.wordOff.c_str();
     }
-    else if(i == CommonOptions::show_power_status) // -V547 Should be here to fail when adding new enum fields
+    else if(i == CommonOptions::show_power_status)
     {
         if(this->m_showPowerStatus)
             return g_mainMenu.wordShow.c_str();
         else
             return g_mainMenu.wordHide.c_str();
+    }
+    else if(i == CommonOptions::alt_menu_controls) // -V547 Should be here to fail when adding new enum fields
+    {
+        if(this->m_altMenuControls)
+            return g_mainMenu.wordOn.c_str();
+        else
+            return g_mainMenu.wordOff.c_str();
     }
     else
         return nullptr;
@@ -316,9 +331,14 @@ bool InputMethodProfile::OptionChange(size_t i)
 
         return true;
     }
-    else if(i == CommonOptions::show_power_status) // -V547 Should be here to fail when adding new enum fields
+    else if(i == CommonOptions::show_power_status)
     {
         this->m_showPowerStatus = !this->m_showPowerStatus;
+        return true;
+    }
+    else if(i == CommonOptions::alt_menu_controls) // -V547 Should be here to fail when adding new enum fields
+    {
+        this->m_altMenuControls = !this->m_altMenuControls;
         return true;
     }
     else
@@ -445,18 +465,13 @@ bool InputMethodType::DeleteProfile(InputMethodProfile* profile, const std::vect
     if(loc == this->m_profiles.end())
         return false;
 
-    int player_no = 0;
-
     for(InputMethod* method : active_methods)
     {
         if(!method)
             continue;
 
         if(method->Profile == profile)
-            return false;
-
-        player_no ++;
-        UNUSED(player_no);
+            DeleteInputMethod(method);
     }
 
     for(int i = 0; i < maxLocalPlayers; i++)
@@ -819,10 +834,12 @@ bool ProcessEvent(const SDL_Event* ev)
 bool Update(bool check_lost_devices)
 {
     bool okay = true;
+    bool prev_okay = true;
 
     // track whether shared controls buttons were pressed last frame, to modify the global versions
     bool old_shared_pause = l_SharedControls.Pause;
     bool old_shared_legacy = l_SharedControls.LegacyPause;
+    bool old_shared_force = l_SharedControls.ForcePause;
 
     // reset per-frame state for SharedCursor
     SharedCursor.Move = false;
@@ -860,6 +877,8 @@ bool Update(bool check_lost_devices)
                 // the method pointer is no longer valid
             }
         }
+        else
+            prev_okay = false;
 
         if(g_hotkeysPressed[Hotkeys::Buttons::LegacyPause] == i + 1)
             newControls.Start = true;
@@ -888,13 +907,16 @@ bool Update(bool check_lost_devices)
     // push shared controls
     if(l_SharedControls.Pause && !old_shared_pause)
         XMessage::PushMessage({XMessage::Type::shared_controls, 0, 0});
-    else if(old_shared_pause && !l_SharedControls.Pause)
-        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 1});
 
     if(l_SharedControls.LegacyPause && !old_shared_legacy)
+        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 1});
+
+    if(l_SharedControls.ForcePause && !old_shared_force)
         XMessage::PushMessage({XMessage::Type::shared_controls, 0, 2});
-    else if(old_shared_legacy && !l_SharedControls.LegacyPause)
-        XMessage::PushMessage({XMessage::Type::shared_controls, 0, 3});
+
+    SharedPause = false;
+    SharedPauseLegacy = false;
+    SharedPauseForce = false;
 
     // sync any messages, and reset player controls to raw controls
     XMessage::Tick();
@@ -984,11 +1006,8 @@ bool Update(bool check_lost_devices)
     }
 
     // indicate if some control slots are missing
-    if(((int)g_InputMethods.size() < l_screen->player_count)
-       && !SingleCoop && !GameMenu && !LevelEditor && !Record::replay_file && check_lost_devices)
-    {
+    if(!prev_okay && !SingleCoop && !GameMenu && !LevelEditor && !Record::replay_file && check_lost_devices)
         okay = false;
-    }
 
     g_disallowHotkeys = false;
 
@@ -1220,6 +1239,55 @@ void RemoveNullInputMethods()
         else
             Controls::DeleteInputMethodSlot(i);
     }
+}
+
+MenuControls_t GetMenuControls(int limit_player)
+{
+    MenuControls_t ret;
+    ret.Up = l_SharedControls.MenuUp;
+    ret.Down = l_SharedControls.MenuDown;
+    ret.Left = l_SharedControls.MenuLeft;
+    ret.Right = l_SharedControls.MenuRight;
+    ret.Home = SharedCursor.Tertiary;
+
+    ret.Do = l_SharedControls.MenuDo || l_SharedControls.Pause;
+    ret.Back = l_SharedControls.MenuBack;
+
+    ret.Erase = false;
+
+    for(size_t i = 0; l_screen && i < (size_t)l_screen->player_count; i++)
+    {
+        if(limit_player != 0 && l_screen->players[i] != limit_player)
+            continue;
+
+        const Controls_t &c = g_RawControls[i];
+
+        // alt menu controls: Jump is back, AltJump is Do
+        if(i < g_InputMethods.size() && g_InputMethods[i] && g_InputMethods[i]->Profile && g_InputMethods[i]->Profile->m_altMenuControls)
+        {
+            ret.Back |= c.Jump;
+            ret.Do |= c.AltJump;
+        }
+        // normal menu controls: Jump is Do, AltJump is Back
+        else
+        {
+            ret.Do |= c.Jump;
+            ret.Back |= c.AltJump;
+        }
+
+        ret.Do |= c.Start;
+        ret.Back |= c.Run;
+
+        ret.Up |= c.Up;
+        ret.Down |= c.Down;
+        ret.Left |= c.Left;
+        ret.Right |= c.Right;
+
+        ret.Home |= c.Drop;
+        ret.Erase |= c.AltRun;
+    }
+
+    return ret;
 }
 
 

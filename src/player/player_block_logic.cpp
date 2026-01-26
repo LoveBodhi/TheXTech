@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "blk_id.h"
 #include "npc_traits.h"
 #include "config.h"
+#include "phys_env.h"
 
 #include "main/trees.h"
 
@@ -114,6 +115,7 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                             if(BlockHurts[Block[B].Type])
                             {
                                 if(Player[A].Mount == 2 ||
+                                    InvincibilityTime ||
                                    (
                                        ((HitSpot == 1 && Player[A].Mount) || (Player[A].Rolling && Player[A].State == PLR_STATE_SHELL)) &&
                                        Block[B].Type != 598
@@ -646,18 +648,25 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                             {
                                 if(oldSlope > 0)
                                 {
-                                    Player[A].Location.Y = Block[B].Location.Y + Block[B].Location.Height + 0.01_n;
-                                    num_t PlrMid = Player[A].Location.Y + Player[A].Location.Height;
-                                    num_t Slope = 1 - (PlrMid - Block[oldSlope].Location.Y) / (int_ok)Block[oldSlope].Location.Height;
-                                    if(Slope < 0)
-                                        Slope = 0;
-                                    if(Slope > 1)
-                                        Slope = 1;
-                                    if(BlockSlope[Block[oldSlope].Type] > 0)
-                                        Player[A].Location.X = Block[oldSlope].Location.X + Block[oldSlope].Location.Width - ((int_ok)Block[oldSlope].Location.Width * Slope);
+                                    if(Block[oldSlope].Location.Height == 0)
+                                    {
+                                        // SMBX 1.3 would have crashed here
+                                    }
                                     else
-                                        Player[A].Location.X = Block[oldSlope].Location.X + ((int_ok)Block[oldSlope].Location.Width * Slope) - Player[A].Location.Width;
-                                    Player[A].Location.SpeedX = 0;
+                                    {
+                                        Player[A].Location.Y = Block[B].Location.Y + Block[B].Location.Height + 0.01_n;
+                                        num_t PlrMid = Player[A].Location.Y + Player[A].Location.Height;
+                                        num_t Slope = 1 - (PlrMid - Block[oldSlope].Location.Y) / (int_ok)Block[oldSlope].Location.Height;
+                                        if(Slope < 0)
+                                            Slope = 0;
+                                        if(Slope > 1)
+                                            Slope = 1;
+                                        if(BlockSlope[Block[oldSlope].Type] > 0)
+                                            Player[A].Location.X = Block[oldSlope].Location.X + Block[oldSlope].Location.Width - ((int_ok)Block[oldSlope].Location.Width * Slope);
+                                        else
+                                            Player[A].Location.X = Block[oldSlope].Location.X + ((int_ok)Block[oldSlope].Location.Width * Slope) - Player[A].Location.Width;
+                                        Player[A].Location.SpeedX = 0;
+                                    }
                                 }
                                 else
                                 {
@@ -755,7 +764,11 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
     // helps the player run down slopes at different angles
     if(Player[A].Slope == 0 && oldSlope > 0 && Player[A].Mount != 1 && Player[A].Mount != 2 && !Player[A].Slide)
     {
-        if(Player[A].Location.SpeedY > 0)
+        if(Block[oldSlope].Location.Width == 0)
+        {
+            // SMBX 1.3 would have crashed here
+        }
+        else if(Player[A].Location.SpeedY > 0)
         {
             tempf_t C = (tempf_t)(Player[A].Location.SpeedX * (int_ok)Block[oldSlope].Location.Height / (int_ok)Block[oldSlope].Location.Width * BlockSlope[Block[oldSlope].Type]);
             if(C > 0)
@@ -863,6 +876,10 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
         {
             Player[A].Location.Y = floorLocation.Y - Player[A].Location.Height;
 
+            // NEW: move aquatic swimming player away from the floor -- helps with spikes
+            if(Player[A].AquaticSwim)
+                Player[A].Location.Y -= 0.01_n;
+
             if(!hitWall && Player[A].StandingOnNPC != 0)
             {
                 if(NPC[Player[A].StandingOnNPC].Location.Y <= floorLocation.Y && Player[A].StandingOnNPC != Player[A].HoldingNPC)
@@ -950,8 +967,11 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
             {
                 Player[A].Location.SpeedY = Physics.PlayerJumpVelocity;
                 Block[floorBlock].Kill = true;
-                iBlocks += 1;
-                iBlock[iBlocks] = floorBlock;
+                if(iBlocks < maxBlocks)
+                {
+                    iBlocks++;
+                    iBlock[iBlocks] = floorBlock;
+                }
                 // HitSpot = 0; // this definition is never used
                 floorBlock = 0;
                 Player[A].Jump = 7;
@@ -1033,7 +1053,14 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
 
     if(ceilingBlock > 0)
     {
-        PlaySoundSpatial(SFX_BlockHit, Player[A].Location);
+        // NEW: bounce an aquatic-swimming player off the ceiling if it has an item
+        if(Player[A].AquaticSwim && Block[ceilingBlock].Special)
+            Player[A].SwimCount = MAZE_DIR_DOWN * 16 + 2;
+
+        // play ceiling hit sound if player is not aquatic swimming (normal) or if the ceiling block has an item
+        if(!Player[A].AquaticSwim || Block[ceilingBlock].Special)
+            PlaySoundSpatial(SFX_BlockHit, Player[A].Location);
+
         Player[A].Jump = 0;
         Player[A].Location.Y = Block[ceilingBlock].Location.Y + Block[ceilingBlock].Location.Height + 0.01_n;
         Player[A].Location.SpeedY = -0.01_n + Block[ceilingBlock].Location.SpeedY;
@@ -1043,12 +1070,6 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
 
         if(Player[A].Fairy || Player[A].Mount == 2 || Player[A].CanFly2)
             Player[A].Location.SpeedY = 2;
-
-        if(Player[A].AquaticSwim)
-        {
-            Player[A].SwimCount = 0;
-            Player[A].Location.SpeedY = 0.5_n;
-        }
 
         if(Player[A].Mount != 2) // Tell the block it was hit
             BlockHit(ceilingBlock, false, A);

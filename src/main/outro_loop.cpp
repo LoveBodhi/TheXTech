@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -256,7 +256,7 @@ void AddCredit(const std::string &newCredit)
     if(numCredits > maxCreditsLines)
     {
         numCredits = maxCreditsLines;
-        pLogWarning("Can't add more credits lines: max limit has been excited ({0} linex maximum)", maxCreditsLines);
+        pLogWarning("Can't add more credits lines: max limit has been excited (%d linex maximum)", maxCreditsLines);
         return;
     }
 
@@ -370,12 +370,15 @@ void SetupCredits()
                            tests and debugs: and also, they introduced the SMBX to me (Vitaliy), in 2013
                            and inspired me to all my future projects (Moondust Project and TheXTech). */
     AddCredit("Krissy Silvermoon"); // For testing and design feedback since 2021 until at least 2025
-    AddCredit("Sapphire Bullet Bill"); // For testing and gameplay feedback since 2022 until at least 2024
+    AddCredit("Sapphire Bullet Bill"); // For testing and gameplay feedback since 2022 until at least 2025
     AddCredit("Bubble"); // For bugtesting in 2021-2022
     AddCredit("Trickii"); // For extensive bugtesting in 2024
     AddCredit("AntonioGZZ96"); // For careful bugtesting in 2024
     AddCredit("ddrsoul"); // For sharing the engine with the PortMaster community (2024)
+    AddCredit("ChaikaWiFika"); // For the help with the testing/debugging on Intel Iris Xe GPU in 2025
     AddCredit("Bloxen"); // For help testing and improving the 38A powerups (2025)
+    AddCredit("Liebning"); // For careful bugtesting in 2025
+    AddCredit("55jedat555"); // For long-term research support regarding SMBX 1.3 bugs, from ~2023 until at least 2025
     // --- P.S. Put all next lines above THIS comment line. ---
 #endif
     AddCredit("");

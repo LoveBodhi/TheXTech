@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@ namespace XPower
 // information about device or a bound input method
 struct StatusInfo
 {
+    StatusInfo() = default;
+    StatusInfo(const StatusInfo &) = default;
+    StatusInfo &operator=(const StatusInfo &) = default;
+
     typedef enum _PowerStatus
     {
         POWER_DISABLED = -1,
@@ -39,6 +43,7 @@ struct StatusInfo
         POWER_CHARGING,
         POWER_CHARGED
     } PowerStatus;
+
     PowerStatus power_status = POWER_DISABLED;
     numf_t power_level = 1;
     const char *info_string = nullptr;

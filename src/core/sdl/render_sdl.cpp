@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +42,12 @@
 
 #ifndef UNUSED
 #define UNUSED(x) (void)x
+#endif
+
+#ifdef THEXTECH_BIG_ENDIAN
+#   define DEFAULT_PIXEL_COLOUR_FORMAT   SDL_PIXELFORMAT_RGBA8888
+#else
+#   define DEFAULT_PIXEL_COLOUR_FORMAT   SDL_PIXELFORMAT_ABGR8888
 #endif
 
 // Workaround for older SDL versions that lacks the floating-point based rects and points
@@ -173,7 +179,7 @@ bool RenderSDL::initRender(SDL_Window *window)
     m_maxTextureHeight = ri.max_texture_height;
 
     m_tBuffer = SDL_CreateTexture(m_gRenderer,
-                                  SDL_PIXELFORMAT_ARGB8888,
+                                  DEFAULT_PIXEL_COLOUR_FORMAT,
                                   SDL_TEXTUREACCESS_TARGET,
                                   ScaleWidth, ScaleHeight);
 
@@ -182,7 +188,7 @@ bool RenderSDL::initRender(SDL_Window *window)
         pLogWarning("Render SDL: Failed to create the normal texture render buffer: %s, trying to create a power-2 texture...", SDL_GetError());
         m_pow2 = true;
         m_tBuffer = SDL_CreateTexture(m_gRenderer,
-                                      SDL_PIXELFORMAT_ARGB8888,
+                                      DEFAULT_PIXEL_COLOUR_FORMAT,
                                       SDL_TEXTUREACCESS_TARGET,
                                       pow2roundup(ScaleWidth), pow2roundup(ScaleHeight));
     }
@@ -380,7 +386,7 @@ void RenderSDL::updateViewport()
         {
             SDL_DestroyTexture(m_tBuffer);
 
-            m_tBuffer = SDL_CreateTexture(m_gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET,
+            m_tBuffer = SDL_CreateTexture(m_gRenderer, DEFAULT_PIXEL_COLOUR_FORMAT, SDL_TEXTUREACCESS_TARGET,
                                           m_pow2 ? pow2roundup(XRender::TargetW) : XRender::TargetW,
                                           m_pow2 ? pow2roundup(XRender::TargetH) : XRender::TargetH);
             SDL_SetRenderTarget(m_gRenderer, m_tBuffer);
@@ -558,7 +564,7 @@ textureTryAgain:
             if(newW != width || newH != height)
             {
                 pLogDebug("Render SDL: Converting surface into Power-2 (Orig: %u x %u, P2: %u x %u)...", width, height, newW, newH);
-                SDL_Surface *newSurface = SDL_CreateRGBSurfaceWithFormat(0, newW, newH, 32, SDL_PIXELFORMAT_ARGB8888);
+                SDL_Surface *newSurface = SDL_CreateRGBSurfaceWithFormat(0, newW, newH, 32, DEFAULT_PIXEL_COLOUR_FORMAT);
                 if(newSurface)
                 {
                     SDL_Rect rect = {0, 0, (int)width, (int)height};
@@ -597,7 +603,7 @@ textureTryAgain:
     target.d.h_scale = static_cast<float>(height) / target.h;
 
     m_loadedPictures.insert(&target);
-    D_pLogDebug("RenderSDL: loading texture at %p, new texture count %d...", &target, (int)m_loadedPictures.size());
+    D_pLogDebug("RenderSDL: loading texture at %p, new texture count %d...", static_cast<void*>(&target), (int)m_loadedPictures.size());
 
     target.inited = true;
 
@@ -612,7 +618,7 @@ void RenderSDL::unloadTexture(StdPicture &tx)
     if(corpseIt != m_loadedPictures.end())
         m_loadedPictures.erase(corpseIt);
 
-    D_pLogDebug("RenderSDL: unloading texture at %p, new texture count %d...", &tx, (int)m_loadedPictures.size());
+    D_pLogDebug("RenderSDL: unloading texture at %p, new texture count %d...", static_cast<void*>(&tx), (int)m_loadedPictures.size());
 
     if(tx.d.hasTexture())
         SDL_DestroyTexture(tx.d.texture);
@@ -629,7 +635,7 @@ void RenderSDL::clearAllTextures()
 {
     for(StdPicture *tx : m_loadedPictures)
     {
-        D_pLogDebug("RenderSDL: unloading texture at %p on clearAllTextures()", tx);
+        D_pLogDebug("RenderSDL: unloading texture at %p on clearAllTextures()", static_cast<void*>(tx));
 
         if(tx->d.hasTexture())
             SDL_DestroyTexture(tx->d.texture);
@@ -787,7 +793,7 @@ void RenderSDL::execute(const XRenderOp& op)
 
         if(op.traits & XRenderOp::Traits::src_rect)
         {
-            sourceRect = {op.xSrc, op.ySrc, op.wSrc, op.hSrc};
+            sourceRect = {(int)(op.xSrc * tx.d.w_scale), (int)(op.ySrc * tx.d.h_scale), (int)(op.wSrc * tx.d.w_scale), (int)(op.hSrc * tx.d.h_scale)};
             sourceRectPtr = &sourceRect;
         }
 
@@ -806,6 +812,108 @@ void RenderSDL::execute(const XRenderOp& op)
         }
         else
         {
+            // special logic to allow half-pixel draws of downscaled images
+            if(sourceRectPtr && tx.d.w_scale == 0.5f && op.wSrc == op.wDst)
+            {
+                SDL_Rect sourceRect2;
+                SDL_Rect destRect2;
+
+                bool lStrip = (op.xSrc & 1);
+                bool tStrip = (op.ySrc & 1);
+                bool rStrip = lStrip != (op.wSrc & 1);
+                bool bStrip = tStrip != (op.hSrc & 1);
+
+                if(lStrip && tStrip)
+                {
+                    sourceRect2 = {sourceRect.x, sourceRect.y, 1, 1};
+                    destRect2 = {destRect.x, destRect.y, 1, 1};
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+
+                if(lStrip)
+                {
+                    sourceRect2 = {sourceRect.x, sourceRect.y, 1, sourceRect.h};
+                    destRect2 = {destRect.x, destRect.y, 1, destRect.h};
+                    if(tStrip)
+                    {
+                        sourceRect2.y += 1;
+                        if(bStrip)
+                            sourceRect2.h -= 1;
+
+                        destRect2.y += 1;
+                        destRect2.h -= 1;
+                    }
+
+                    if(bStrip)
+                        destRect2.h -= 1;
+
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+
+                    sourceRect.x += 1;
+                    sourceRect.w = (int)((op.wSrc - 1) * tx.d.w_scale);
+                    destRect.x += 1;
+                    destRect.w -= 1;
+                }
+
+                if(tStrip)
+                {
+                    sourceRect2 = {sourceRect.x, sourceRect.y, sourceRect.w, 1};
+                    destRect2 = {destRect.x, destRect.y, destRect.w, 1};
+
+                    if(rStrip)
+                        destRect2.w -= 1;
+
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+
+                    sourceRect.y += 1;
+                    sourceRect.h = (int)((op.hSrc - 1) * tx.d.h_scale);
+                    destRect.y += 1;
+                    destRect.h -= 1;
+                }
+
+                if(rStrip)
+                {
+                    destRect.w -= 1;
+                    sourceRect2 = {sourceRect.x + sourceRect.w, sourceRect.y, 1, sourceRect.h};
+                    destRect2 = {destRect.x + destRect.w, destRect.y, 1, destRect.h};
+
+                    if(bStrip)
+                        destRect2.h -= 1;
+
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+
+                if(bStrip)
+                {
+                    destRect.h -= 1;
+                    sourceRect2 = {sourceRect.x, sourceRect.y + sourceRect.h, sourceRect.w, 1};
+                    destRect2 = {destRect.x, destRect.y + destRect.h, destRect.w, 1};
+
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+
+                if(lStrip && bStrip)
+                {
+                    sourceRect2 = {sourceRect.x - 1, sourceRect.y + sourceRect.h, 1, 1};
+                    destRect2 = {destRect.x - 1, destRect.y + destRect.h, 1, 1};
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+
+                if(rStrip && tStrip)
+                {
+                    sourceRect2 = {sourceRect.x + sourceRect.w, sourceRect.y - 1, 1, 1};
+                    destRect2 = {destRect.x + destRect.w, destRect.y - 1, 1, 1};
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+
+                if(rStrip && bStrip)
+                {
+                    sourceRect2 = {sourceRect.x + sourceRect.w, sourceRect.y + sourceRect.h, 1, 1};
+                    destRect2 = {destRect.x + destRect.w, destRect.y + destRect.h, 1, 1};
+                    SDL_RenderCopy(m_gRenderer, tx.d.texture, &sourceRect2, &destRect2);
+                }
+            }
+
             SDL_RenderCopy(m_gRenderer, tx.d.texture, sourceRectPtr, &destRect);
         }
 
@@ -951,10 +1059,10 @@ void RenderSDL::renderTextureScaleEx(int xDst, int yDst, int wDst, int hDst,
     op.wDst = wDst;
     op.hDst = hDst;
 
-    op.xSrc = tx.d.w_scale * xSrc;
-    op.ySrc = tx.d.h_scale * ySrc;
-    op.wSrc = tx.d.w_scale * wSrc;
-    op.hSrc = tx.d.h_scale * hSrc;
+    op.xSrc = xSrc;
+    op.ySrc = ySrc;
+    op.wSrc = wSrc;
+    op.hSrc = hSrc;
 
     op.color = color;
 
@@ -1005,7 +1113,7 @@ void RenderSDL::renderTextureScale(int xDst, int yDst, int wDst, int hDst,
     XRenderOp& op = m_render_queue.push(m_recent_draw_plane);
 
     op.type = XRenderOp::Type::texture;
-    op.traits = m_pow2 ? XRenderOp::Traits::src_rect : 0;
+    op.traits = (m_pow2) ? XRenderOp::Traits::src_rect : 0;
 
     op.texture = &tx;
 
@@ -1018,8 +1126,8 @@ void RenderSDL::renderTextureScale(int xDst, int yDst, int wDst, int hDst,
     {
         op.xSrc = 0;
         op.ySrc = 0;
-        op.wSrc = tx.d.w_scale * tx.w;
-        op.hSrc = tx.d.h_scale * tx.h;
+        op.wSrc = tx.w;
+        op.hSrc = tx.h;
     }
 
     op.color = color;
@@ -1070,10 +1178,10 @@ void RenderSDL::renderTexture(int xDst, int yDst, int wDst, int hDst,
     op.wDst = wDst;
     op.hDst = hDst;
 
-    op.xSrc = tx.d.w_scale * xSrc;
-    op.ySrc = tx.d.h_scale * ySrc;
-    op.wSrc = tx.d.w_scale * wDst;
-    op.hSrc = tx.d.h_scale * hDst;
+    op.xSrc = xSrc;
+    op.ySrc = ySrc;
+    op.wSrc = wDst;
+    op.hSrc = hDst;
 
     op.color = color;
 }
@@ -1115,7 +1223,7 @@ void RenderSDL::renderTexture(int xDst, int yDst,
     XRenderOp& op = m_render_queue.push(m_recent_draw_plane);
 
     op.type = XRenderOp::Type::texture;
-    op.traits = m_pow2 ? XRenderOp::Traits::src_rect : 0;
+    op.traits = (m_pow2) ? XRenderOp::Traits::src_rect : 0;
 
     op.texture = &tx;
 
@@ -1128,8 +1236,8 @@ void RenderSDL::renderTexture(int xDst, int yDst,
     {
         op.xSrc = 0;
         op.ySrc = 0;
-        op.wSrc = tx.d.w_scale * tx.w;
-        op.hSrc = tx.d.h_scale * tx.h;
+        op.wSrc = tx.w;
+        op.hSrc = tx.h;
     }
 
     op.color = color;

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,8 +45,8 @@ void DrawBackgroundColor(int A, int Z, bool lower = false)
 void DrawTopAnchoredBackground(int S, int Z, int A, int offset = 32, int expected_height = 0, int tile_bottom = 0, int h_num = 2)
 {
     DrawBackgroundColor(A, Z, true);
-    int camX = vScreen[Z].CameraAddX();
-    int camY = vScreen[Z].CameraAddY();
+    int camX = vScreen[Z].CameraAddX_i();
+    int camY = vScreen[Z].CameraAddY_i();
 
     const auto& sect = LevelREAL[S];
     int levelX = sect.X;
@@ -94,8 +94,8 @@ void DrawCenterAnchoredBackground(int S, int Z, int A, int expected_height = 0, 
 {
     const auto& sect = LevelREAL[S];
     const Screen_t& screen = Screens[vScreen[Z].screen_ref];
-    int camX = vScreen[Z].CameraAddX();
-    int camY = vScreen[Z].CameraAddY();
+    int camX = vScreen[Z].CameraAddX_i();
+    int camY = vScreen[Z].CameraAddY_i();
 
     int Eff_ScreenH = vScreen[Z].Height;
     int Eff_Top = 0;
@@ -290,8 +290,8 @@ void DrawBottomAnchoredBackground(int S, int Z, int A, int offset = 0, int expec
 {
     const auto& sect = LevelREAL[S];
     const Screen_t& screen = Screens[vScreen[Z].screen_ref];
-    int camX = vScreen[Z].CameraAddX();
-    int camY = vScreen[Z].CameraAddY();
+    int camX = vScreen[Z].CameraAddX_i();
+    int camY = vScreen[Z].CameraAddY_i();
 
     if(!no_bg)
         DrawBackgroundColor(A, Z, false);
@@ -384,8 +384,8 @@ static void DrawYTiledBackground(int off_x, int off_y, int vscreen_w, int vscree
 void DrawBackground(int S, int Z)
 {
     const Screen_t& screen = Screens[vScreen[Z].screen_ref];
-    int camX = vScreen[Z].CameraAddX();
-    int camY = vScreen[Z].CameraAddY();
+    int camX = vScreen[Z].CameraAddX_i();
+    int camY = vScreen[Z].CameraAddY_i();
 
     int Left = vScreen[Z].Left;
 
@@ -590,7 +590,8 @@ void DrawBackground(int S, int Z)
 
         if(sect.Width - sect.X > GFXBackground2[A].w)
         {
-            off_x = (-camX - sect.X - vScreen[Z].Left) * (GFXBackground2[A].w - 800) / (sect.Width - sect.X - 800) + vScreen[Z].Left;
+            int32_t sect_off_x = sect.Width - sect.X - 800;
+            off_x = (sect_off_x == 0 ? 0 : (-camX - sect.X - vScreen[Z].Left) * (GFXBackground2[A].w - 800) / sect_off_x) + vScreen[Z].Left;
             off_x = -off_x;
         }
 

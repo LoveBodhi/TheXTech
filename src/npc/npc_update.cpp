@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1081,15 +1081,24 @@ interrupt_Activation:
                 else if(NPC[A]->IsFish && NPC[A].Special == 2 && NPC[A].Location.SpeedY > 0)
                     speedVar /= 2;
 
-                if(NPC[A].Location.SpeedY >= 3) // Terminal Velocity in water
+                // new logic for iceballs fired upwards by a Polar Swim player
+                if(NPC[A].Type == NPCID_PLR_ICEBALL && NPC[A].Special4)
+                    Physics.NPCGravity /= 4;
+                // SMBX 1.3 logic: Terminal Velocity in water
+                else if(NPC[A].Location.SpeedY >= 3)
                     NPC[A].Location.SpeedY = 3;
-
-                if(NPC[A].Location.SpeedY < -3)
+                else if(NPC[A].Location.SpeedY < -3)
                     NPC[A].Location.SpeedY = -3;
+
+                if(NPC[A].Type == NPCID_RAFT)
+                    NPC[A].Special2 = 10; // Set a counter of being dry while floating on water top
             }
             // as far as I'm aware it would make absolutely no difference if this did not happen for NPCID_RAFT
             else if(NPC[A].Type == NPCID_RAFT || NPC[A]->IsFish)
             {
+                if(NPC[A].Type == NPCID_RAFT && NPC[A].Special2 > 0)
+                    --NPC[A].Special2; // Once it's dry, count down
+
                 // detect if fish is out of water for an extended period so that it can clip through walls
                 NPC[A].WallDeath += 2;
 
@@ -1226,48 +1235,7 @@ interrupt_Activation:
                             if(NPC[A].Special == 0)
                                 NPC[A].Special = NPCID_VEGGIE_RANDOM;
 
-                            if(NPC[A].Generator)
-                            {
-                                NPC[A].Generator = false;
-                                NPCQueues::update(A);
-                            }
-
-                            NPC[A].Frame = 0;
-                            NPC[A].Type = NPCID(NPC[A].Special);
-                            NPC[A].Special = 0;
-                            NPC[A].Wings = NPC[A].DefaultWings;
-
-                            if(NPCIsYoshi(NPC[A]))
-                            {
-                                NPC[A].Special = NPC[A].Type;
-                                NPC[A].Type = NPCID_ITEM_POD;
-                            }
-
-                            if(!(NPC[A].Type == NPCID_CANNONENEMY || NPC[A].Type == NPCID_CANNONITEM || NPC[A].Type == NPCID_SPRING || NPC[A].Type == NPCID_KEY ||
-                                 NPC[A].Type == NPCID_COIN_SWITCH || NPC[A].Type == NPCID_TIME_SWITCH || NPC[A].Type == NPCID_TNT || NPC[A].Type == NPCID_BLU_BOOT ||
-                                 NPC[A].Type == NPCID_RED_BOOT || NPC[A].Type == NPCID_GRN_BOOT ||
-                                 // Duplicated segment [PVS Studio]
-                                 // NPC[A].Type == NPCID_BLU_BOOT ||
-                                 NPC[A].Type == NPCID_TOOTHYPIPE || NPCIsAnExit(NPC[A])))
-                            {
-                                NPC[A].DefaultType = NPCID_NULL;
-                            }
-
-                            NPC[A].Location.Height = NPC[A]->THeight;
-                            NPC[A].Location.Width = NPC[A]->TWidth;
-
-                            if(NPC[A].Type == NPCID_VEGGIE_RANDOM)
-                            {
-                                int B = iRand(9);
-                                NPC[A].Type = NPCID(NPCID_VEGGIE_2 + B);
-
-                                if(NPC[A].Type == NPCID_VEGGIE_RANDOM)
-                                    NPC[A].Type = NPCID_VEGGIE_1;
-
-                                NPC[A].Location.set_width_center(NPC[A]->TWidth);
-                                NPC[A].Location.set_height_center(NPC[A]->THeight);
-                            }
-
+                            NPCUnbury(A, 1);
                             NPCQueues::Unchecked.push_back(A);
                         }
 
@@ -1678,9 +1646,9 @@ interrupt_Activation:
                 || NPC[A].Location.Width != prevW
                 || NPC[A].Location.Height != prevH)
             {
-                treeNPCUpdate(A);
+                bool changed = treeNPCUpdate(A);
 
-                if(NPC[A].tempBlock > 0)
+                if(changed && NPC[A].tempBlock > 0)
                     treeNPCSplitTempBlock(A);
             }
         }

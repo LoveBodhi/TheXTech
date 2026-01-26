@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,6 +111,8 @@
 
 #include "main/trees.h"
 
+bool g_ShortDelay = false;
+
 void CheckActive();
 // set up sizable blocks
 void SizableBlocks();
@@ -125,15 +127,16 @@ static int loadingThread(void *waiter_ptr)
     UNUSED(waiter_ptr);
 #endif
 
-    LoaderUpdateDebugString("Game info");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusGameInfo);
     initGameInfo();
     cheats_reset();
+    ConfigReloadRecentEpisodes();
 
-    LoaderUpdateDebugString("Translations");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusTranslations);
     XLanguage::findLanguages(); // find present translations
     ReloadTranslations(); // load translations
 
-    LoaderUpdateDebugString("Asset packs");
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusAssetPacks);
     GetAssetPacks();
 
     SetupPhysics(); // Setup Physics
@@ -156,7 +159,7 @@ static int loadingThread(void *waiter_ptr)
 
     InitSound(); // Setup sound effects
 
-    LoaderUpdateDebugString("Finishing...", true);
+    LoaderUpdateDebugString(g_gameStrings.loaderStatusFinishing, true);
     UpdateLoad();
 
 #ifndef PGE_NO_THREADING
@@ -306,18 +309,24 @@ static void s_ExpandSectionForMenu()
         menu_section.Y = menu_section.Height - 2160;
 }
 
-void ReportLoadFailure(const std::string& filename)
+void ReportLoadFailure(const std::string& filename, bool isIPC)
 {
 #ifdef THEXTECH_ENABLE_SDL_NET
     XMessage::Disconnect();
+#endif
+#if !defined(THEXTECH_INTERPROC_SUPPORTED)
+    UNUSED(isIPC);
 #endif
 
     g_MessageType = MESSAGE_TYPE_SYS_WARNING;
 
     // temporarily store error code from load process in MessageTitle string
     std::swap(MessageText, MessageTitle);
-
+#if defined(THEXTECH_INTERPROC_SUPPORTED)
+    MessageText = isIPC ? g_gameStrings.errorOpenIPCDataFailed : fmt::format_ne(g_gameStrings.errorOpenFileFailed, filename);
+#else
     MessageText = fmt::format_ne(g_gameStrings.errorOpenFileFailed, filename);
+#endif
 
     // add error code from load process
     if(!MessageTitle.empty())
@@ -508,12 +517,7 @@ int GameMain(const CmdLineSetup_t &setup)
     bool init_failure = !InitUIAssetsFrom(setup.assetPack);
 
     if(init_failure)
-    {
-        if(!setup.assetPack.empty())
-            return 1;
-
         FontManager::initFallback();
-    }
 
 //    If LevelEditor = False Then
 //        frmMain.Show // Show window a bit later
@@ -623,6 +627,12 @@ int GameMain(const CmdLineSetup_t &setup)
                 MessageText += "<pack-id>/";
         }
 
+        if(!setup.assetPack.empty())
+        {
+            MessageText = "Could not load cmdline-requested assets: ";
+            MessageText += setup.assetPack;
+        }
+
         PauseGame(PauseCode::Message);
         GracefulQuit();
         return 0;
@@ -679,7 +689,7 @@ int GameMain(const CmdLineSetup_t &setup)
 
             selWorld = 1;
 
-            if(SelectWorld[selWorld].WorldPath.empty())
+            if(SelectWorld[selWorld].WorldFilePath.empty())
             {
                 LevelSelect = false;
                 TestLevel = true;
@@ -960,6 +970,10 @@ int GameMain(const CmdLineSetup_t &setup)
                         {
                             SetupScreens();
                         });
+
+            // Ensure everything is clear
+            GraphicsClearScreen();
+            XEvents::doEvents();
         }
 
         // quickly exit if returned to menu from world test
@@ -1019,9 +1033,11 @@ int GameMain(const CmdLineSetup_t &setup)
             g_curLevelMedals.reset_checkpoint();
             WorldPlayer[1].Frame = 0;
             cheats_clearBuffer();
-            LevelBeatCode = 0;
+            LevelBeatCode = BEATCODE_NONE;
             curWorldLevel = 0;
 
+            lunaReset();
+            ResetSoundFX();
             ClearWorld();
 
             ReturnWarp = 0;
@@ -1154,11 +1170,11 @@ int GameMain(const CmdLineSetup_t &setup)
 
             delayedMusicStart(); // Allow music being started
 
-            ProcEvent(EVENT_LEVEL_START, 0, true);
+            ProcEvent(EVENT_LEVEL_START, 0, EventContext::InitSetup);
             For(A, 2, maxEvents)
             {
                 if(Events[A].AutoStart)
-                    ProcEvent(A, 0, true);
+                    ProcEvent(A, 0, EventContext::InitSetup);
             }
 
             // Main menu loop
@@ -1167,6 +1183,13 @@ int GameMain(const CmdLineSetup_t &setup)
             {
                 speedRun_saveStats();
                 return 0;// Break on quit
+            }
+
+            // Ensure everything is clear if the main menu is no longer active
+            if(!ScreenAssetPack::g_LoopActive)
+            {
+                GraphicsClearScreen();
+                XEvents::doEvents();
             }
         }
 
@@ -1254,13 +1277,13 @@ int GameMain(const CmdLineSetup_t &setup)
                 if(GoToLevel.empty())
                 {
                     if(FileRecentSubHubLevel.empty())
-                        levelPath = SelectWorld[selWorld].WorldPath + StartLevel;
+                        levelPath = FileNamePathWorld + StartLevel;
                     else
-                        levelPath = SelectWorld[selWorld].WorldPath + FileRecentSubHubLevel;
+                        levelPath = FileNamePathWorld + FileRecentSubHubLevel;
                 }
                 else
                 {
-                    levelPath = SelectWorld[selWorld].WorldPath + GoToLevel;
+                    levelPath = FileNamePathWorld + GoToLevel;
                     GoToLevel.clear();
                 }
 
@@ -1274,7 +1297,8 @@ int GameMain(const CmdLineSetup_t &setup)
 
                 if(!GoToLevelNoGameThing)
                 {
-                    GameThing(1000, 3);
+                    GameThing(1000 - (g_ShortDelay * 250), 3);
+                    g_ShortDelay = false;
                 }
                 else if(XMessage::GetStatus() != XMessage::Status::replay)
                 {
@@ -1282,6 +1306,8 @@ int GameMain(const CmdLineSetup_t &setup)
                     XRender::clearBuffer();
                     XRender::repaint();
                 }
+
+                GoToLevelNoGameThing = false;
             }
             else
             {
@@ -1420,7 +1446,7 @@ int GameMain(const CmdLineSetup_t &setup)
                         }
 
                         PlayerFrame(p);
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         SoundPause[SFX_Warp] = 0;
                         p.Effect = PLREFF_WAITING;
                         p.Effect2 = 950;
@@ -1432,7 +1458,7 @@ int GameMain(const CmdLineSetup_t &setup)
 //                            .Location.Y = Warp(.Warp).Exit.Y + Warp(.Warp).Exit.Height - .Location.Height
                         p.Location.Y = warp.Exit.Y + warp.Exit.Height - p.Location.Height;
 
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         p.Effect = PLREFF_WAITING;
                         p.Effect2 = 2000;
                     }
@@ -1440,7 +1466,7 @@ int GameMain(const CmdLineSetup_t &setup)
                     {
                         p.Location.X = warp.Exit.X + (warp.Exit.Width - p.Location.Width) / 2;
                         p.Location.Y = warp.Exit.Y + warp.Exit.Height - p.Location.Height;
-                        CheckSection(A);
+                        CheckSection_Init(A);
                         p.WarpCD = 50;
 
                         if(warp.eventExit != EVENT_NONE)
@@ -1552,16 +1578,20 @@ int GameMain(const CmdLineSetup_t &setup)
                     }
                     return false;
                 });
+
+                // Ensure everything is clear
+                GraphicsClearScreen();
+                XEvents::doEvents();
             }
 
             // store to level save info if level won
-            if(LevelBeatCode > 0 || !GoToLevel.empty())
+            if((LevelBeatCode > 0 && LevelBeatCode != BEATCODE_GAME_COMPLETE) || !GoToLevel.empty())
             {
                 CommitBeatCode(LevelBeatCode);
                 g_curLevelMedals.commit();
             }
             // otherwise, reset the medal count
-            else
+            else if(LevelBeatCode != BEATCODE_GAME_COMPLETE)
                 g_curLevelMedals.on_all_dead();
 
             Record::EndRecording();
@@ -1586,12 +1616,12 @@ int GameMain(const CmdLineSetup_t &setup)
                 if(LevelBeatCode >= 0)
                 {
                     LevelSelect = false;
-                    LevelBeatCode = -2; // checked in PauseScreen::Init()
+                    LevelBeatCode = BEATCODE_RESTART; // checked in PauseScreen::Init()
                     PauseGame(PauseCode::PauseScreen);
                 }
 
                 // check that we are still restarting (it could have been canceled above)
-                if(LevelBeatCode == 0 || LevelBeatCode == -2)
+                if(LevelBeatCode == BEATCODE_NONE || LevelBeatCode == BEATCODE_RESTART)
                 {
                     GameThing();
                     zTestLevel(setup.testMagicHand || editorScreen.test_magic_hand, setup.interprocess); // Restart level
@@ -1633,7 +1663,7 @@ int GameMain(const CmdLineSetup_t &setup)
                     return 0;
                 }
 
-                LevelBeatCode = 0;
+                LevelBeatCode = BEATCODE_NONE;
 
 //                If nPlay.Online = False Then
 //                    OpenLevel FullFileName
@@ -1797,19 +1827,23 @@ void NextLevel()
         XEvents::doEvents();
     }
 
-    if(!TestLevel && GoToLevel.empty() && !NoMap)
+    // do an inter-level delay here if there won't be a GameThing later
+    if(!TestLevel && GoToLevel.empty() && !NoMap && FileRecentSubHubLevel.empty())
     {
         if(XMessage::GetStatus() != XMessage::Status::local)
         {
-            for(int i = 0; i < 32; i++)
+            for(int i = 0; i < ((g_ShortDelay) ? 16 : 32); i++)
                 Controls::Update(false);
         }
         else if(!g_config.unlimited_framerate)
-            PGE_Delay(500);
+            PGE_Delay(500 - (g_ShortDelay * 250));
+
+        g_ShortDelay = false;
     }
 
     if(BattleMode && !LevelEditor && !TestLevel)
     {
+        g_ShortDelay = false;
         EndLevel = false;
         GameMenu = true;
         MenuMode = MENU_BATTLE_MODE;
@@ -1911,7 +1945,7 @@ void UpdateMacro()
 
             if((!is_cheat && LevelMacroCounter >= 100) || (is_cheat && LevelMacroCounter >= 316))
             {
-                LevelBeatCode = 1;
+                LevelBeatCode = BEATCODE_CARD_ROULETTE;
                 LevelMacro = LEVELMACRO_OFF;
                 LevelMacroCounter = 0;
                 EndLevel = true;
@@ -1942,7 +1976,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 460)
         {
-            LevelBeatCode = 2;
+            LevelBeatCode = BEATCODE_QUESTION_SPHERE;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
@@ -1976,7 +2010,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= keyholeMax) /*300*/
         {
-            LevelBeatCode = 4;
+            LevelBeatCode = BEATCODE_KEYHOLE;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroWhich = 0;
@@ -2010,7 +2044,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 300)
         {
-            LevelBeatCode = 5;
+            LevelBeatCode = BEATCODE_CRYSTAL_BALL;
             EndLevel = true;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
@@ -2053,6 +2087,9 @@ void UpdateMacro()
             if(!TestLevel)
             {
                 BeatTheGame = true;
+                // new level beat code 15: beat the game (exclusive to new level save info -- does not open any exits)
+                CommitBeatCode(BEATCODE_GAME_COMPLETE);
+                g_curLevelMedals.commit();
                 SaveGame();
                 GameOutro = true;
                 MenuMode = MENU_INTRO;
@@ -2087,7 +2124,7 @@ void UpdateMacro()
 
         if(LevelMacroCounter >= 300)
         {
-            LevelBeatCode = 7;
+            LevelBeatCode = BEATCODE_STAR;
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
             EndLevel = true;
@@ -2155,7 +2192,8 @@ void UpdateMacro()
         {
             // LEVELMACRO_GOAL_TAPE_EXIT = 7 -> 8
             // LEVELMACRO_FLAG_EXIT = 8 -> 9
-            LevelBeatCode = (LevelMacro + 1);
+            // LEVELMACRO_ALT_FLAG_EXIT = 9 -> 10 (reserved)
+            LevelBeatCode = (LevelBeatCode_t)(LevelMacro + 1);
             LevelMacro = LEVELMACRO_OFF;
             LevelMacroCounter = 0;
             EndLevel = true;
@@ -2185,6 +2223,17 @@ void CheckActive()
     // If LevelEditor = False Then Exit Sub
     while(!XWindow::hasWindowInputFocus())
     {
+        if(!focusLost)
+        {
+            XRender::setTargetTexture();
+            XRender::renderRect(0, 0, XRender::TargetW, XRender::TargetH, {0, 0, 0, 127}, true);
+            SuperPrintScreenCenter(g_gameStrings.screenPaused.empty() ? "Paused" : g_gameStrings.screenPaused, 3, XRender::TargetH / 2);
+            pLogDebug("Window Focus lost");
+            focusLost = true;
+        }
+
+        XRender::repaint();
+
         XEvents::waitEvents();
 //        If LevelEditor = True Or MagicHand = True Then frmLevelWindow.vScreen(1).MousePointer = 0
         SyncSysCursorDisplay();
@@ -2194,12 +2243,6 @@ void CheckActive()
         resetTimeBuffer();
         //keyDownEnter = false;
         //keyDownAlt = false;
-
-        if(!focusLost)
-        {
-            pLogDebug("Window Focus lost");
-            focusLost = true;
-        }
 
 //        if(musicPlaying && !MusicPaused)
 //        {
@@ -2438,6 +2481,7 @@ void StartEpisode()
     Lives = 3;
     LevelSelect = true;
     GameMenu = false;
+    g_ShortDelay = false;
     UpdateInternalRes();
     XRender::setTargetTexture();
     XRender::clearBuffer();
@@ -2454,7 +2498,7 @@ void StartEpisode()
     UnloadCustomSound();
     Archives::unmount_episode();
 
-    std::string wPath = SelectWorld[selWorld].WorldPath + SelectWorld[selWorld].WorldFile;
+    std::string wPath = SelectWorld[selWorld].WorldFilePath;
     std::string recentWorldIntroPrev = g_recentWorldIntro;
     bool doSaveConfig = false;
 
@@ -2541,7 +2585,7 @@ void StartEpisode()
         ClearLevel();
 
         std::string levelName = (FileRecentSubHubLevel.empty() ? StartLevel : FileRecentSubHubLevel);
-        std::string levelPath = SelectWorld[selWorld].WorldPath + levelName;
+        std::string levelPath = FileNamePathWorld + levelName;
 
         levelPath = s_prepare_episode_path(levelPath);
 
@@ -2615,10 +2659,10 @@ void StartBattleMode()
             selWorld = (iRand(NumSelectBattle - 1)) + 2;
     }
 
-    std::string levelPath = SelectBattle[selWorld].WorldPath + SelectBattle[selWorld].WorldFile;
+    const std::string& levelPath = SelectBattle[selWorld].WorldFilePath;
     if(!OpenLevel(levelPath))
     {
-        ReportLoadFailure(SelectBattle[selWorld].WorldFile);
+        ReportLoadFailure(levelPath);
         ErrorQuit = true;
     }
     SetupPlayers();

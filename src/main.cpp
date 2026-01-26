@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -200,15 +200,15 @@ static void strToPlayerSetup(int player, const std::string &setupString)
 
     if(p.Character < 1)
         p.Character = 1;
-    else if(p.Character > 5)
-        p.Character = 5;
+    else if(p.Character > numCharacters)
+        p.Character = numCharacters;
 
     if(p.State < 1)
         p.State = 1;
-    else if(p.State > 7)
-        p.State = 7;
+    else if(p.State >= numStates)
+        p.State = numStates;
 
-    if(p.HeldBonus >= maxNPCType)
+    if(p.HeldBonus > maxNPCType)
         p.HeldBonus = NPCID_NULL;
 
     if(hasHealth)
@@ -252,7 +252,9 @@ static void strToPlayerSetup(int player, const std::string &setupString)
 }
 #endif
 
+#if defined(SDL_MAIN_NEEDED) || defined(__16M__)
 extern "C"
+#endif
 int main(int argc, char**argv)
 {
 #ifdef __16M__
@@ -293,7 +295,7 @@ int main(int argc, char**argv)
        titleID == MII_MAKER_USA_TITLE_ID ||
        titleID == MII_MAKER_EUR_TITLE_ID)
     {
-        // Important: OSEnableHomeButtonMenu must come befoe ProcUIInitEx.
+        // Important: OSEnableHomeButtonMenu must be called before ProcUIInitEx.
         OSEnableHomeButtonMenu(FALSE);
         g_isHBLauncher = true;
     }
@@ -335,7 +337,7 @@ int main(int argc, char**argv)
     {
         // Define the command line object.
         TCLAP::CmdLine  cmd("TheXTech Engine\n"
-                            "Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>\n\n"
+                            "Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>\n\n"
                             "This program is distributed under the GPLv3 license\n\n", ' ', V_LATEST_STABLE " [" V_BUILD_BRANCH ", #" V_BUILD_VER "]");
 
         TCLAP::ValueArg<std::string> customAssetsPath("c", "asset-pack", "Specify the different assets pack name or directory to play",

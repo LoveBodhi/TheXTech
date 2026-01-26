@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,19 @@ public:
     ~RenderEffectOp() override = default;
 
     void Draw(Renderer *renderer) override;
+
+    inline void* operator new(size_t size)
+    {
+        // Note: If you creating any chunks with a size bigger than current size, please increase it
+        SDL_assert_release(size < c_rAllocChunkSize);
+        auto *ret = g_rAlloc.Allocate(c_rAllocChunkSize);
+        return ret;
+    }
+
+    inline void operator delete(void* memory)
+    {
+        g_rAlloc.Free(memory);
+    }
 
     // Effects //
     void ScreenGlow(Renderer *renderer);

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -325,8 +325,8 @@ void Renderer::DrawOp(RenderOp &op)
 
 bool Render::IsOnScreen(int x, int y, int w, int h)
 {
-    int cam_x = vScreen[1].CameraAddX();
-    int cam_y = vScreen[1].CameraAddY();
+    int cam_x = vScreen[1].CameraAddX_i();
+    int cam_y = vScreen[1].CameraAddY_i();
     int cam_w = vScreen[1].Width;
     int cam_h = vScreen[1].Height;
 

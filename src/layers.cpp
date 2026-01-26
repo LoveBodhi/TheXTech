@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sdl_proxy/sdl_stdinc.h"
 #include "globals.h"
 #include "layers.h"
+#include "saved_layers.h"
 #include "effect.h"
 #include "collision.h"
 #include "npc.h"
@@ -68,7 +69,7 @@ static SDL_INLINE bool equalCase(const std::string &x, const std::string &y)
     return (SDL_strcasecmp(x.c_str(), y.c_str()) == 0);
 }
 
-static SDL_INLINE bool equalCase(const char *x, const char *y)
+static SDL_INLINE ATTRIB_UNUSED bool equalCase(const char *x, const char *y)
 {
     return (SDL_strcasecmp(x, y) == 0);
 }
@@ -143,37 +144,37 @@ bool SwapLayers(layerindex_t index_1, layerindex_t index_2)
 
     std::swap(Layer[index_1], Layer[index_2]);
 
-    // repoint all of Layer 1's objects to index 2
+    // repoint all of the new Layer 1's objects to index 1
     for(int A : Layer[index_1].NPCs)
-        NPC[A].Layer = index_2;
-
-    for(int A : Layer[index_1].blocks)
-        Block[A].Layer = index_2;
-
-    for(int A : Layer[index_1].BGOs)
-        Background[A].Layer = index_2;
-
-    for(int A : Layer[index_1].warps)
-        Warp[A].Layer = index_2;
-
-    for(int A : Layer[index_1].waters)
-        Water[A].Layer = index_2;
-
-    // repoint all of Layer 2's objects to index 1
-    for(int A : Layer[index_2].NPCs)
         NPC[A].Layer = index_1;
 
-    for(int A : Layer[index_2].blocks)
+    for(int A : Layer[index_1].blocks)
         Block[A].Layer = index_1;
 
-    for(int A : Layer[index_2].BGOs)
+    for(int A : Layer[index_1].BGOs)
         Background[A].Layer = index_1;
 
-    for(int A : Layer[index_2].warps)
+    for(int A : Layer[index_1].warps)
         Warp[A].Layer = index_1;
 
-    for(int A : Layer[index_2].waters)
+    for(int A : Layer[index_1].waters)
         Water[A].Layer = index_1;
+
+    // repoint all of the new Layer 2's objects to index 2
+    for(int A : Layer[index_2].NPCs)
+        NPC[A].Layer = index_2;
+
+    for(int A : Layer[index_2].blocks)
+        Block[A].Layer = index_2;
+
+    for(int A : Layer[index_2].BGOs)
+        Background[A].Layer = index_2;
+
+    for(int A : Layer[index_2].warps)
+        Warp[A].Layer = index_2;
+
+    for(int A : Layer[index_2].waters)
+        Water[A].Layer = index_2;
 
     // swap AttLayers
     for(int A = 1; A <= numNPCs; A++)
@@ -453,6 +454,9 @@ void ShowLayer(layerindex_t L, bool NoEffect)
     int A = 0;
     int B = 0;
 
+    if(Layer[L].SavedLayer)
+        SavedLayers[Layer[L].SavedLayer - 1].Visible = true;
+
     Layer[L].Hidden = false;
     if(L == LAYER_DESTROYED_BLOCKS)
         Layer[L].Hidden = true;
@@ -494,6 +498,14 @@ void ShowLayer(layerindex_t L, bool NoEffect)
             {
                 bool hit = false;
 
+                // see if it's close to a canonical screen (within 8px), and disallow it from activating if not
+                // (fixes mostly vanilla bug which occurs because visible NPCs move following Deactivate but hidden NPCs don't)
+                Location_t tempLocation = NPC[A].Location;
+                tempLocation.X -= 8;
+                tempLocation.Y -= 8;
+                tempLocation.Width += 16;
+                tempLocation.Height += 16;
+
                 for(int screen_i = 0; !hit && screen_i < c_screenCount; screen_i++)
                 {
                     const Screen_t& screen = Screens[screen_i];
@@ -508,7 +520,7 @@ void ShowLayer(layerindex_t L, bool NoEffect)
                     {
                         int vscreen_Z = screen.vScreen_refs[vscreen_i];
 
-                        if(vScreenCollision(vscreen_Z, NPC[A].Location))
+                        if(vScreenCollision(vscreen_Z, tempLocation))
                             hit = true;
                     }
                 }
@@ -590,6 +602,9 @@ void HideLayer(layerindex_t L, bool NoEffect)
     if(L == LAYER_NONE)
         return;
 
+    if(Layer[L].SavedLayer)
+        SavedLayers[Layer[L].SavedLayer - 1].Visible = false;
+
     Layer[L].Hidden = true;
 
     for(int A : Layer[L].NPCs)
@@ -653,12 +668,10 @@ void SetLayer(layerindex_t /*LayerName*/)
 
 void InitializeEvent(Events_t& event)
 {
-    event = Events_t();
+    event.reinit();
+
     for(int i = 0; i <= maxSections; i++)
-    {
-        event.section[i] = EventSection_t();
         event.section[i].position.X = EventSection_t::LESet_Nothing;
-    }
 }
 
 bool SwapEvents(eventindex_t index_1, eventindex_t index_2)
@@ -799,7 +812,7 @@ bool DeleteEvent(eventindex_t index)
         SwapEvents(B, B+1);
 
     numEvents--;
-    Events[numEvents] = Events_t();
+    Events[numEvents].reinit();
 
     return true;
 }
@@ -1189,7 +1202,7 @@ static inline bool s_initLegacyQScreen(Screen_t& screen, const int B, const Spee
 
 // Old functions:
 
-eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer, bool NoEffect)
+eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer, EventContext context)
 {
     if(index == EVENT_NONE || LevelEditor)
         return EVENT_NONE;
@@ -1283,16 +1296,33 @@ eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer,
                 int warped_plr = 0;
 
                 // warp other players to resized section, if not a reset or level start
-                bool do_warp = !is_reset && !evt.AutoStart && !equalCase(evt.Name.c_str(), "Level - Start");
+                bool do_warp = !is_reset && (index != EVENT_LEVEL_START);
+                // modern/classic logic: don't warp if it's the auto-run event loop
+                if(g_config.modern_section_change)
+                    do_warp &= (context != EventContext::InitSetup);
+                // vanilla logic: don't warp on any Autostart event (even if it isn't the first frame of the level)
+                else
+                    do_warp &= !evt.AutoStart;
+
                 s_testPlayersInSection(screen, B, do_warp, onscreen_plr, warped_plr);
 
                 bool set_qScreen_i = false;
 
+                // modern/classic: don't start any qScreen during initial setup frame
+                if(g_config.modern_section_change && context == EventContext::InitSetup)
+                {
+                    // do nothing
+                }
+                // don't start any qScreen for "Level - Start" event, on any frame (vanilla logic)
+                else if(index == EVENT_LEVEL_START)
+                {
+                    // do nothing
+                }
                 // start the modern qScreen animation
-                if(!equalCase(evt.Name.c_str(), "Level - Start") && g_config.modern_section_change)
+                else if(g_config.modern_section_change)
                     set_qScreen_i = s_initModernQScreen(screen, B, tempLevel, newLevel, onscreen_plr, warped_plr, is_reset);
                 // legacy qScreen animation
-                else if(!equalCase(evt.Name.c_str(), "Level - Start"))
+                else
                     set_qScreen_i = s_initLegacyQScreen(screen, B, tempLevel, newLevel, onscreen_plr);
 
                 if(set_qScreen_i)
@@ -1311,10 +1341,10 @@ eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer,
     }
 
     for(auto &l : evt.HideLayer)
-        HideLayer(l, NoEffect ? true : evt.LayerSmoke);
+        HideLayer(l, (context != EventContext::Normal) ? (true) : evt.LayerSmoke);
 
     for(auto &l : evt.ShowLayer)
-        ShowLayer(l, NoEffect ? true : evt.LayerSmoke);
+        ShowLayer(l, (context != EventContext::Normal) ? (true) : evt.LayerSmoke);
 
     for(auto &l : evt.ToggleLayer)
     {
@@ -1332,10 +1362,8 @@ eventindex_t ProcEvent_Safe(bool is_resume, eventindex_t index, int whichPlayer,
 
         if(Layer[B].SpeedX == 0 && Layer[B].SpeedY == 0)
         {
-            // eventually, only re-join tables the first time the event has been triggered in a level
-            treeBlockJoinLayer(B);
-            treeBackgroundJoinLayer(B);
-            treeWaterJoinLayer(B);
+            // join the layer back to the main spatial lookup tables if it doesn't start moving again for 255 frames (this can be tuned, 255 is the maximum possible for this uint8_t variable)
+            Layer[B].join_timer = 255;
         }
         else
         {
@@ -1441,7 +1469,7 @@ event_resume:
             {
                 // this should receive tail-call optimization
                 // possibly request resuming at the child index (or its child, etc)
-                return ProcEvent_Safe(false, evt.TriggerEvent, whichPlayer, NoEffect);
+                return ProcEvent_Safe(false, evt.TriggerEvent, whichPlayer, context);
             }
         }
         else if(newEventNum < maxEvents)
@@ -1463,14 +1491,14 @@ event_resume:
     return EVENT_NONE;
 }
 
-void ProcEvent(eventindex_t index, int whichPlayer, bool NoEffect)
+void ProcEvent(eventindex_t index, int whichPlayer, EventContext context)
 {
-    eventindex_t resume_event = ProcEvent_Safe(false, index, whichPlayer, NoEffect);
+    eventindex_t resume_event = ProcEvent_Safe(false, index, whichPlayer, context);
 
     while(resume_event != EVENT_NONE)
     {
         PauseGame(PauseCode::None, 0);
-        resume_event = ProcEvent_Safe(true, resume_event, whichPlayer, NoEffect);
+        resume_event = ProcEvent_Safe(true, resume_event, whichPlayer, context);
     }
 }
 
@@ -1587,26 +1615,41 @@ resume:
             level[A].Width += (num_t)AutoX[A];
             level[A].Y += (num_t)AutoY[A];
             level[A].Height += (num_t)AutoY[A];
+
+            int cam_w = num_t::round(level[A].Width - level[A].X);
+            int cam_h = num_t::round(level[A].Height - level[A].Y);
+
+            // SMBX 1.3 forces 800x800 camera at end of autoscroll (vanilla bug)
+            if(!AutoUseModern)
+            {
+                cam_w = 800;
+                cam_h = 800;
+            }
+
             if(level[A].Width > LevelREAL[A].Width)
             {
                 level[A].Width = LevelREAL[A].Width;
-                level[A].X = LevelREAL[A].Width - 800;
+                level[A].X = LevelREAL[A].Width - cam_w;
             }
+
             if(level[A].X < LevelREAL[A].X)
             {
-                level[A].Width = LevelREAL[A].X + 800;
+                level[A].Width = LevelREAL[A].X + cam_w;
                 level[A].X = LevelREAL[A].X;
             }
+
             if(level[A].Height > LevelREAL[A].Height)
             {
                 level[A].Height = LevelREAL[A].Height;
-                level[A].Y = LevelREAL[A].Height - 800;
+                level[A].Y = LevelREAL[A].Height - cam_h;
             }
+
             if(level[A].Y < LevelREAL[A].Y)
             {
-                level[A].Height = LevelREAL[A].Y + 800;
+                level[A].Height = LevelREAL[A].Y + cam_h;
                 level[A].Y = LevelREAL[A].Y;
             }
+
             UpdateSectionOverlaps(A);
         }
     }
@@ -1690,7 +1733,21 @@ void UpdateLayers()
 
         // only consider non-empty, moving layers
         if(Layer[A].Name.empty() || (Layer[A].SpeedX == 0 && Layer[A].SpeedY == 0))
+        {
+            // join timer check for layers that were moving until recently
+            if(Layer[A].join_timer && !FreezeNPCs && !FreezeLayers)
+            {
+                Layer[A].join_timer--;
+                if(Layer[A].join_timer == 0)
+                {
+                    treeBlockJoinLayer(A);
+                    treeBackgroundJoinLayer(A);
+                    treeWaterJoinLayer(A);
+                }
+            }
+
             continue;
+        }
 
         // the layer does not move
         if(FreezeNPCs || (FreezeLayers && Layer[A].EffectStop))

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -251,8 +251,8 @@ void UpdateGraphics2(bool skipRepaint)
 
     XRender::setViewport(vScreen[Z].TargetX() - XRender::TargetOverscanX, vScreen[Z].TargetY(), vScreen[Z].Width + 2 * XRender::TargetOverscanX, vScreen[Z].Height);
 
-    int camX = vScreen[Z].CameraAddX() + XRender::TargetOverscanX;
-    int camY = vScreen[Z].CameraAddY();
+    int camX = vScreen[Z].CameraAddX_i() + XRender::TargetOverscanX;
+    int camY = vScreen[Z].CameraAddY_i();
 
     int sLeft = -camX - 2 * XRender::TargetOverscanX;
     int sTop = -camY;

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ void Handle(const Message& m)
 
         SwapCharacter(screen.players[m.player], m.message);
 
-        if(LevelSelect)
+        if(LevelSelect && !GameMenu)
             SetupPlayers();
     }
     else if(m.type == Type::add_player || m.type == Type::add_player_dead)
@@ -110,11 +110,9 @@ void Handle(const Message& m)
         if(m.message == 0)
             SharedPause = true;
         else if(m.message == 1)
-            SharedPause = false;
-        else if(m.message == 2)
             SharedPauseLegacy = true;
-        else if(m.message == 3)
-            SharedPauseLegacy = false;
+        else if(m.message == 2)
+            SharedPauseForce = true;
     }
     else if(m.type == Type::enter_code)
         run_cheat(m);

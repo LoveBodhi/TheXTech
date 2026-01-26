@@ -152,6 +152,16 @@ elseif(NOT MSVC)
         if(ANDROID)
             set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -funwind-tables")
             set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -funwind-tables")
+        elseif(THEXTECH_CLI_BUILD AND THEXTECH_NO_SDL_BUILD)
+            # use -Os by default for all build types
+            string(REGEX REPLACE "-O3" "-Os"
+                CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+            string(REGEX REPLACE "-O3" "-Os"
+                CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+            string(REGEX REPLACE "-O2" "-Os"
+                CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+            string(REGEX REPLACE "-O2" "-Os"
+                CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
         elseif(NINTENDO_DS)
             # use -Os by default for all build types
             string(REGEX REPLACE "-O3" "-Os"
@@ -235,6 +245,8 @@ if(ANDROID)
         set(ANDROID_PLATFORM 16)
     endif()
 
+    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384")
+
     if(FDROID_BUILD)
         set(FILE_PATH_OVERRIDE "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=/builds/fdroid/fdroiddata/build/ru.wohlsoft.thextech.fdroid/")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${FILE_PATH_OVERRIDE}")
@@ -258,6 +270,7 @@ if(ANDROID)
         "-DANDROID_NATIVE_API_LEVEL=${ANDROID_NATIVE_API_LEVEL}"
         "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
         "-DANDROID_ARM_NEON=${ANDROID_ARM_NEON}"
+        "-DCMAKE_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
     )
 
     message("--Current Android STL=${ANDROID_STL} and flags: ${ANDROID_CMAKE_FLAGS}")

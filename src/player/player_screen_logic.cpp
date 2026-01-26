@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -458,14 +458,6 @@ void PlayerOffscreenExitCheck(int A)
     {
         offScreenExit = true;
     }
-    else if(g_config.EnableInterLevelFade)
-    {
-        int nearby = SDL_min((int)nearby_left, (int)nearby_right);
-        int fade = (32 - nearby) * 2;
-
-        if(fade > 0 && g_levelScreenFader.m_current_fade < fade && g_levelScreenFader.m_target_fade == 0 && g_levelScreenFader.m_current_fade == g_levelScreenFader.m_step)
-            g_levelScreenFader.setupFader(fade, fade, 0, ScreenFader::S_FADE);
-    }
 
     if(offScreenExit)
     {
@@ -477,11 +469,21 @@ void PlayerOffscreenExitCheck(int A)
             ReturnWarpSaved = 0;
         }
 
-        LevelBeatCode = 3;
+        LevelBeatCode = BEATCODE_OFFSCREEN;
         EndLevel = true;
         LevelMacro = LEVELMACRO_OFF;
         LevelMacroCounter = 0;
-        g_levelScreenFader.setupFader(65, 65, 0, ScreenFader::S_FADE);
+
+        if(!GoToLevelNoGameThing)
+        {
+            if(g_config.EnableInterLevelFade)
+                g_levelScreenFader.setupFader(4, 0, 65, ScreenFader::S_FADE);
+            else
+                g_levelScreenFader.setupFader(65, 0, 65, ScreenFader::S_FADE);
+
+            levelWaitForFade(16);
+            g_ShortDelay = true;
+        }
     }
 }
 

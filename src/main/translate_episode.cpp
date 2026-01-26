@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,28 +59,12 @@ static std::string getTrFileLang(const std::string &lang, const std::string &dia
             langFile = p + fmt::format_ne("{0}/i18n/translation_{1}-{2}.json", subDir, lang.c_str(), dialect.c_str());
             if(!Files::fileExists(langFile))
                 langFile.clear();
-
-            // Try to find the translation at the data sub-directory
-            if(langFile.empty())
-            {
-                langFile = p + fmt::format_ne("{0}/translation_{1}-{2}.json", subDir, lang.c_str(), dialect.c_str());
-                if(!Files::fileExists(langFile))
-                    langFile.clear();
-            }
         }
 
         // Now try at the i18n at episode root
         if(langFile.empty())
         {
             langFile = p + fmt::format_ne("i18n/translation_{0}-{1}.json", lang.c_str(), dialect.c_str());
-            if(!Files::fileExists(langFile))
-                langFile.clear();
-        }
-
-        // Now try at the episode root
-        if(langFile.empty())
-        {
-            langFile = p + fmt::format_ne("translation_{0}-{1}.json", lang.c_str(), dialect.c_str());
             if(!Files::fileExists(langFile))
                 langFile.clear();
         }
@@ -96,28 +80,12 @@ static std::string getTrFileLang(const std::string &lang, const std::string &dia
             langFile = p + fmt::format_ne("{0}/i18n/translation_{1}.json", subDir, lang.c_str());
             if(!Files::fileExists(langFile))
                 langFile.clear();
-
-            // Try to find the translation at the data sub-directory
-            if(langFile.empty())
-            {
-                langFile = p + fmt::format_ne("{0}/translation_{1}.json", subDir, lang.c_str());
-                if(!Files::fileExists(langFile))
-                    langFile.clear();
-            }
         }
 
         // Now try at the i18n at episode root
         if(langFile.empty())
         {
             langFile = p + fmt::format_ne("i18n/translation_{0}.json", lang.c_str());
-            if(!Files::fileExists(langFile))
-                langFile.clear();
-        }
-
-        // Now try at the episode root
-        if(langFile.empty())
-        {
-            langFile = p + fmt::format_ne("translation_{0}.json", lang.c_str());
             if(!Files::fileExists(langFile))
                 langFile.clear();
         }

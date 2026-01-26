@@ -1,6 +1,6 @@
 /*
  * Moondust, a free game engine for platform game making
- * Copyright (c) 2014-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2014-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This software is licensed under a dual license system (MIT or GPL version 3 or later).
  * This means you are free to choose with which of both licenses (MIT or GPL version 3 or later)
@@ -57,6 +57,30 @@ void initFallback();
 void initFull();
 //! De-Initialize font manager and clear memory
 void quit();
+
+/**
+ * @brief Once language had been toggled, a different default TTF font may be chosen
+ * \param lang Language code
+ * \param country Country code (may be empty)
+ */
+void updateDefaultFontByLang(const std::string &lang, const std::string &country);
+
+/*!
+ * \brief List of UI metrics categories
+ */
+enum UIMetricsCategory
+{
+    Metrics_MenuMinLineHeight = 0,
+    // FIXME: Implement other categories
+};
+
+/*!
+ * \brief Gets the per language UI metrics value
+ * \param category Metrics category index
+ * \param lang Current language
+ * \return Height in pixels
+ */
+int getMetricsValue(UIMetricsCategory category, const std::string &lang);
 
 /**
  * @brief Attempts to load custom fonts for the episode and for the level

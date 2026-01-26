@@ -334,7 +334,11 @@
             "errorInvalidEnterWarp": "Can't start the level because of an invalid entrance warp {1} was specified.\nTotal warp entries: {2}\n\nFile: {0}",
             "errorNoStartPoint": "Can't start the level because of no available start points placed or entrance warp specified.\n\nFile: {0}",
             "openFileFailed": "Can't open \"{0}\": file doesn't exist or corrupted.",
-            "warpNeedStarCount": "You need {0} {1} to enter."
+            "warpNeedStarCount": "You need {0} {1} to enter.",
+            "IPCTimeOut": "No responce from the connected Editor. Game will be closed.",
+            "openIPCDataFailed": "Can't proceed received file data because of corruption or other errors.",
+            "errorTooOldEngine": "Content requires a newer engine feature level ({0}) than the current version ({1}). Please update TheXTech.",
+            "errorTooOldGameAssets": "Content requires a newer asset pack feature level ({0}) than the current asset pack ({1}). Please upgrade your game asset pack."
         },
         "hint": {
             "pound-altrun": "Press Alt Run to pound downwards!",
@@ -369,6 +373,24 @@
             "sysInfoError": "Error!",
             "sysInfoTitle": "Info",
             "sysInfoWarning": "Warning!"
+        },
+        "screenPaused": "Paused",
+        "ipcStatus": {
+            "dataAccepted": "Data accepted, the parsing started...",
+            "dataTransferStarted": "Started data tansfer...",
+            "dataValid": "Accepted data is valid",
+            "errorTimeout": "ERROR: Wait time out.",
+            "loadingdone": "Done. Starting game...",
+            "waitingInput": "Waiting for input data..."
+        },
+        "loader": {
+            "statusAssetPacks": "Asset packs",
+            "statusFinishing": "Finishing...",
+            "statusGameInfo": "Game info",
+            "statusLoadData": "Loading data...",
+            "statusLoadFile": "Load: {0}",
+            "statusTranslations": "Translations",
+            "loading": "Loading..."
         }
     },
     "languageName": "English",
@@ -399,6 +421,7 @@
             "caseTouch": "(Touch)",
             "controlsConnected": "Connected:",
             "controlsDeleteKey": "(Alt Jump to Delete)",
+            "controlsDeleteKey2": "(Alt Run to Delete)",
             "controlsDeviceTypes": "Device Types",
             "controlsInUse": "(In Use)",
             "controlsNewProfile": "<New Profile>",
@@ -441,6 +464,7 @@
                 "batteryStatus": "Battery Status",
                 "maxPlayers": "Max Players",
                 "rumble": "Rumble",
+                "altMenuControls": "Alt Menu Controls",
                 "textEntryStyle": "Text Entry Style"
             },
             "joystickSimpleEditor": "Simple Editor Controls",
@@ -656,9 +680,16 @@
                     "auto": "Auto",
                     "desktop": "Desktop",
                     "desktop-tip": "Keep the current screen resolution",
-                    "real": "Exclusive",
-                    "real-tip": "Set physical screen resolution"
-                }
+                    "exclusive": "Exclusive",
+                    "exclusive-tip": "Set physical screen resolution"
+                },
+                "fullscreen-depth": {
+                    "16": "16-bit",
+                    "32": "32-bit",
+                    "_name": "Exclusive bit depth",
+                    "auto": "Auto"
+                },
+                "fullscreen-res": "Exclusive res"
             },
             "audio": {
                 "_header": "Audio",
@@ -770,7 +801,8 @@
                     "linear": "Smooth",
                     "nearest": "Nearest",
                     "full": "Full",
-                    "center": "Center"
+                    "center": "Center",
+                    "3x": "3x"
                 },
                 "show-episode-title": {
                     "_name": "Episode name",

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include <json/json_rwops_input.hpp>
 #include <json/json.hpp>
+#include <fmt_format_ne.h>
 
 #include "core/render.h"
 
@@ -36,6 +37,7 @@
 #include "../main/trees.h"
 #include "level_file.h"
 #include "world_file.h"
+#include "saved_layers.h"
 #include "main/game_info.h"
 #include "main/level_save_info.h"
 #include "main/screen_progress.h"
@@ -70,6 +72,9 @@ using callback_error = std::runtime_error;
 #endif
 
 bool OpenWorld_Post(const WorldLoad& load);
+
+// defined in level_file.cpp
+[[ noreturn ]] void priv_FeatureLevelError(const std::string& errMsg, int reqFeatureLevel, int curFeatureLevel);
 
 bool OpenWorld(std::string FilePath)
 {
@@ -107,6 +112,11 @@ bool OpenWorld(std::string FilePath)
     LoadCustomConfig();
     FindCustomPlayers();
     LoadCustomGFX(true);
+    if(!LoadDefaultSavedLayers())
+    {
+        MessageText = "savedlayers.ini invalid";
+        return false;
+    }
 
     // bool compatModern = (g_config.compatibility_mode == Config_t::COMPAT_OFF);
 
@@ -140,7 +150,7 @@ bool OpenWorld(std::string FilePath)
 
         if(!FileFormats::OpenWorldFileT(in, wld))
         {
-            pLogWarning("Error of world \"%s\" file loading: %s (line %d).",
+            pLogWarning("Error of world \"%s\" file loading: %s (line %ld).",
                         FilePath.c_str(),
                         wld.meta.ERROR_info.c_str(),
                         wld.meta.ERROR_linenum);
@@ -159,7 +169,7 @@ bool OpenWorld(std::string FilePath)
 #ifdef PGEFL_CALLBACK_API
 void OpenWorld_Error(void*, FileFormatsError& e)
 {
-    pLogWarning("Error of world file loading: %s (line %d).",
+    pLogWarning("Error of world file loading: %s (line %ld).",
                 e.ERROR_info.c_str(),
                 e.ERROR_linenum);
 
@@ -190,9 +200,9 @@ bool OpenWorld_Head(void* userdata, WorldData& wld)
 #endif
 
     if(reqFeatureLevel > engineFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update TheXTech.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldEngine, reqFeatureLevel, engineFeatureLevel);
     else if(reqFeatureLevel > g_gameInfo.contentFeatureLevel)
-        throw callback_error("Content cannot be loaded. Please update your game assets.");
+        priv_FeatureLevelError(g_gameStrings.errorTooOldGameAssets, reqFeatureLevel, g_gameInfo.contentFeatureLevel);
 
     WorldName = wld.EpisodeTitle;
 
@@ -473,10 +483,19 @@ bool OpenWorld_Music(void*, WorldMusicBox& m)
         }
 
         // In game they are smaller (30x30), in world they are 32x32
-        box.Location.Width = 30;
-        box.Location.Height = 30;
-        box.Location.Y += 1;
-        box.Location.X += 1;
+        if(!LevelEditor)
+        {
+            box.Location.Width = 30;
+            box.Location.Height = 30;
+            box.Location.Y += 1;
+            box.Location.X += 1;
+        }
+        else
+        {
+            box.Location.Width = 32;
+            box.Location.Height = 32;
+        }
+
         // box.Z = zCounter++;
         treeWorldMusicAdd(&box);
     }
@@ -677,6 +696,8 @@ void ClearWorld(bool quick)
         UnloadCustomSound();
         LoadPlayerDefaults();
     }
+
+    ClearSavedLayers();
 
     MaxWorldStars = 0;
     numTiles = 0;

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,16 +69,13 @@ void DeathCounter::init()
             return;
         }
 
-        std::string oldFile = makeGameSavePath(SelectWorld[selWorld].WorldPath,
-                                               SelectWorld[selWorld].WorldFile,
+        std::string oldFile = makeGameSavePath(SelectWorld[selWorld].WorldFilePath,
                                                fmt::format_ne("demos-{0}.dmo", selSave));
 
-        std::string oldFile2 = makeGameSavePath(SelectWorld[selWorld].WorldPath,
-                                               SelectWorld[selWorld].WorldFile,
+        std::string oldFile2 = makeGameSavePath(SelectWorld[selWorld].WorldFilePath,
                                                fmt::format_ne("deaths-{0}.rip", selSave));
 
-        counterFile = makeGameSavePath(SelectWorld[selWorld].WorldPath,
-                                       SelectWorld[selWorld].WorldFile,
+        counterFile = makeGameSavePath(SelectWorld[selWorld].WorldFilePath,
                                        fmt::format_ne("fails-{0}.rip", selSave));
 
         if(Files::fileExists(oldFile)) // Rename old file ino the new name
@@ -171,7 +168,7 @@ bool DeathCounter::TryLoadStats()
     if(got != sizeof(int32_t) || tempint < 5)
     {
         if(got != sizeof(int32_t))
-            pLogWarning("Demos counter: Failed to read version number at the %s file", counterFile.c_str());
+            pLogWarning("Fails counter: Failed to read version number at the %s file", counterFile.c_str());
 
         mStatFileOK = false;
         mEnabled = false;
@@ -269,7 +266,7 @@ void DeathCounter::ReadRecords(SDL_RWops *statsfile)
 
     if(got != sizeof(tempint))
     {
-        pLogWarning("Demos counter: Failed to read the number of records");
+        pLogWarning("Fails counter: Failed to read the number of records");
         return;
     }
 

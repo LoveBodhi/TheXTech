@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -939,7 +939,7 @@ void PlaySoundInternal(int A, int loops, int volume, int l, int r)
 
     UNUSED(loops);
 
-    if(A < 1 || A - 1 > (int)s_sfxEffects.size() || s_sfxEffects[A - 1] == -1 || !g_config.sfx_modern) // Play fallback sound for the missing SFX
+    if(A < 1 || A - 1 > static_cast<int>(s_sfxEffects.size()) || s_sfxEffects[A - 1] == -1 || !g_config.sfx_modern) // Play fallback sound for the missing SFX
         A = getFallbackSfx(A);
 
     if(g_ClonedPlayerMode && A == SFX_Skid)

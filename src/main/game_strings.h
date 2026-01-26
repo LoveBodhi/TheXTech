@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #define GAME_STRINGS_H
 
 #include <string>
-#include <vector>
 
 struct GameContent
 {
@@ -31,11 +30,40 @@ struct GameContent
     std::string msgBoxTitleWarning;
     std::string msgBoxTitleError;
 
+    std::string loaderLoading;
+    std::string loaderStatusLoadData;
+    std::string loaderStatusLoadFile;
+    std::string loaderStatusGameInfo;
+    std::string loaderStatusTranslations;
+    std::string loaderStatusAssetPacks;
+    std::string loaderStatusFinishing;
+
     std::string errorOpenFileFailed;
+#if defined(THEXTECH_INTERPROC_SUPPORTED) || !defined(THEXTECH_DISABLE_LANG_TOOLS)
+    std::string errorOpenIPCDataFailed;
+#endif
+    std::string errorTooOldEngine;
+    std::string errorTooOldGameAssets;
     std::string errorInvalidEnterWarp;
     std::string errorNoStartPoint;
+#if defined(THEXTECH_INTERPROC_SUPPORTED) || !defined(THEXTECH_DISABLE_LANG_TOOLS)
+    std::string errorIPCTimeOut;
+#endif
     std::string messageScanningLevels;
     std::string formatMinutesSeconds;
+
+#if defined(THEXTECH_INTERPROC_SUPPORTED) || !defined(THEXTECH_DISABLE_LANG_TOOLS)
+    std::string ipcStatusWaitingInput;
+    std::string ipcStatusDataTransferStarted;
+    std::string ipcStatusDataAccepted;
+    std::string ipcStatusDataValid;
+    std::string ipcStatusErrorTimeout;
+    std::string ipcStatusLoadingDone;
+#endif
+
+#if !defined(NO_WINDOW_FOCUS_TRACKING) || !defined(THEXTECH_DISABLE_LANG_TOOLS)
+    std::string screenPaused;
+#endif
 
     std::string warpNeedStarCount;
 

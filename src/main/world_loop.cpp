@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,6 +79,13 @@ void worldWaitForFade(int waitTicks)
 
         if(!g_config.unlimited_framerate)
             PGE_Delay(1);
+    }
+
+    // Ensure everything is clear
+    if(GameIsActive)
+    {
+        XEvents::doEvents();
+        GraphicsClearScreen();
     }
 }
 
@@ -302,9 +309,11 @@ void WorldLoop()
             }
 
             SaveGame();
-            LevelBeatCode = 0;
+            LevelBeatCode = BEATCODE_NONE;
         }
-        else if(LevelBeatCode == -1)
+        // case where the player manually quit or there was an error
+        // (these should probably be split up -- the error logic is from SMBX 1.3 and should be preserved)
+        else if(LevelBeatCode == BEATCODE_QUIT)
         {
             s_worldUpdateMusic(WorldPlayer[1].Location);
             worldResetSection();
@@ -324,11 +333,11 @@ void WorldLoop()
                 LevelPath(WorldLevel[curWorldLevel], 5);
 
             SaveGame();
-            LevelBeatCode = 0;
+            LevelBeatCode = BEATCODE_NONE;
         }
     }
     else
-        LevelBeatCode = 0;
+        LevelBeatCode = BEATCODE_NONE;
 
     for(int A = 1; A <= numPlayers; A++)
     {
@@ -410,6 +419,7 @@ void WorldLoop()
 
 resume_from_pause:
 
+        // find player's current level
         TinyLocation_t tempLocation = WorldPlayer[1].Location;
         tempLocation.Width -= 8;
         tempLocation.Height -= 8;
@@ -429,6 +439,21 @@ resume_from_pause:
             }
         }
 
+        // NEW: allow CanAltJump to start levels (for starting levels using AltJump)
+        if(g_config.multiplayer_pause_controls)
+        {
+            if(Player[1].Controls.AltJump)
+            {
+                if(Player[1].CanAltJump)
+                    Player[1].Controls.Jump = true;
+
+                Player[1].CanAltJump = false;
+            }
+            else
+                Player[1].CanAltJump = true;
+        }
+
+        // geneeral controls / movement logic
         if(Player[1].Controls.Up)
         {
             tempLocation.Y -= 32;
@@ -702,7 +727,7 @@ resume_from_pause:
 
                         worldResetSection();
 
-                        LevelBeatCode = 6;
+                        LevelBeatCode = BEATCODE_WARP;
 
                         //for(B = 1; B <= numWorldLevels; B++)
                         for(WorldLevelRef_t t2 : treeWorldLevelQuery(WorldPlayer[1].Location, SORTMODE_ID))

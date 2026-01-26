@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -201,7 +201,9 @@ static std::unordered_map<int, SFX_t>           sound;
 static SDL_atomic_t                                extSfxBusy;
 static std::unordered_map<std::string, Mix_Chunk*> extSfx;
 static std::unordered_map<int, std::string>        extSfxPlaying;
+#ifndef THEXTECH_NO_SDL_BUILD
 static void extSfxStopCallback(int channel);
+#endif
 
 static const int maxSfxChannels = 91;
 
@@ -211,6 +213,7 @@ static const double c_max_chunk_duration = 1.25; // max length of an in-memory c
 static const double c_max_chunk_duration = 5.0;  // max length of an in-memory chunk in seconds
 #endif
 
+#ifndef THEXTECH_NO_SDL_BUILD
 static const char *audio_format_to_string(SDL_AudioFormat f)
 {
     switch(f)
@@ -238,6 +241,33 @@ static const char *audio_format_to_string(SDL_AudioFormat f)
     case AUDIO_F32MSB:
         return "F32-BE";
     }
+}
+#endif
+
+static void clear_sfx(SFX_t &s)
+{
+    if(s.chunk)
+        Mix_FreeChunk(s.chunk);
+
+    s.chunk = nullptr;
+
+    if(s.chunkOrig)
+        Mix_FreeChunk(s.chunkOrig);
+
+    s.chunkOrig = nullptr;
+
+    if(s.music)
+    {
+        Mix_HaltMusicStream(s.music);
+        Mix_FreeMusic(s.music);
+    }
+
+    s.music = nullptr;
+
+    if(s.musicOrig)
+        Mix_FreeMusic(s.musicOrig);
+
+    s.musicOrig = nullptr;
 }
 
 
@@ -307,7 +337,7 @@ void InitMixerX()
     if(ret < 0)
     {
         std::string msg = fmt::format_ne("Can't open audio stream, continuing without audio: ({0})", Mix_GetError());
-        pLogCritical(msg.c_str());
+        pLogCritical("%s", msg.c_str());
         XMsgBox::simpleMsgBox(XMsgBox::MESSAGEBOX_ERROR, "Sound opening error", msg);
     }
     else
@@ -402,24 +432,12 @@ void QuitMixerX()
         Mix_FreeMusic(g_curMusic);
 
     g_curMusic = nullptr;
+    g_reservedChannels = 0;
 
     for(auto & it : sound)
     {
         auto &s = it.second;
-        if(s.chunk)
-            Mix_FreeChunk(s.chunk);
-
-        if(s.chunkOrig)
-            Mix_FreeChunk(s.chunkOrig);
-
-        if(s.music)
-        {
-            Mix_HaltMusicStream(s.music);
-            Mix_FreeMusic(s.music);
-        }
-
-        if(s.musicOrig)
-            Mix_FreeMusic(s.musicOrig);
+        clear_sfx(s);
     }
 
     sound.clear();
@@ -568,6 +586,7 @@ static void AddSfx(SoundScope root,
                     {
                         if(backup_chunk)
                             Mix_FreeChunk(backup_chunk);
+
                         if(backup_music)
                             Mix_FreeMusic(backup_music);
                     }
@@ -623,7 +642,16 @@ static void AddSfx(SoundScope root,
                 ini.read("single-channel", isSingleChannel, false);
                 if(isSingleChannel && m.chunk)
                     m.channel = g_reservedChannels++;
-                sound.insert({alias, m});
+
+                auto se = sound.find(alias);
+                if(se != sound.end()) // Avoid memory leaks
+                {
+                    auto &s = se->second;
+                    clear_sfx(s);
+                    s = std::move(m);
+                }
+                else
+                    sound.insert({alias, m});
             }
             else
             {
@@ -935,7 +963,7 @@ void StartMusic(int A, int fadeInMs)
             processPathArgs(p, FileNamePath, FileName + "/", &s_musicYoshiTrackNumber);
             g_curMusic = Mix_LoadMUS(p.c_str());
             if(!g_curMusic)
-                pLogWarning("Failed to open the music [%s]: ", p.c_str(), Mix_GetError());
+                pLogWarning("Failed to open the music [%s]: %s", p.c_str(), Mix_GetError());
             else
             {
                 s_musicHasYoshiMode = (s_musicYoshiTrackNumber >= 0 && (Mix_GetMusicTracks(g_curMusic) > s_musicYoshiTrackNumber));
@@ -1386,23 +1414,14 @@ void UnloadSound()
 
     if(g_curMusic)
         Mix_FreeMusic(g_curMusic);
+
     g_curMusic = nullptr;
     g_reservedChannels = 0;
 
     for(auto & it : sound)
     {
         auto &s = it.second;
-        if(s.chunk)
-            Mix_FreeChunk(s.chunk);
-        if(s.chunkOrig)
-            Mix_FreeChunk(s.chunkOrig);
-        if(s.music)
-        {
-            Mix_HaltMusicStream(s.music);
-            Mix_FreeMusic(s.music);
-        }
-        if(s.musicOrig)
-            Mix_FreeMusic(s.musicOrig);
+        clear_sfx(s);
     }
 
     sound.clear();
@@ -1678,10 +1697,18 @@ void PreloadExtSound(const std::string& path)
     auto f = extSfx.find(path);
     if(f == extSfx.end())
     {
-        auto *ch = Mix_LoadWAV(path.c_str());
+        pLogDebug("Preloading custom sound [%s]...", path.c_str());
+        SDL_RWops *f = Files::open_file(path, "rb");
+        if(!f)
+        {
+            pLogWarning("Custom sound preload: Can't acquire a file handle for [%s] (SDL Error: %s)", path.c_str(), SDL_GetError());
+            return;
+        }
+
+        auto *ch = Mix_LoadWAV_RW(f, 1);
         if(!ch)
         {
-            pLogWarning("Can't load custom sound [%s]: %s", path.c_str(), Mix_GetError());
+            pLogWarning("Custom sound preload: Can't load custom sound [%s]: %s", path.c_str(), Mix_GetError());
             return;
         }
         extSfx.insert({path, ch});
@@ -1717,7 +1744,7 @@ void PlayExtSound(const std::string &path, int loops, int volume)
         auto *ch = Mix_LoadWAV(path.c_str());
         if(!ch)
         {
-            pLogWarning("Can't load custom sound: %s", Mix_GetError());
+            pLogWarning("Can't load custom sound %s: %s", path.c_str(), Mix_GetError());
             return;
         }
 
@@ -1736,9 +1763,10 @@ void PlayExtSound(const std::string &path, int loops, int volume)
         SDL_AtomicSet(&extSfxBusy, 0);
     }
     else
-        pLogWarning("Can't play custom sound %s: %s", Mix_GetError());
+        pLogWarning("Can't play custom sound %s: %s", path.c_str(), Mix_GetError());
 }
 
+#ifndef THEXTECH_NO_SDL_BUILD
 static void extSfxStopCallback(int channel)
 {
     if(SDL_AtomicGet(&extSfxBusy) == 1)
@@ -1748,6 +1776,7 @@ static void extSfxStopCallback(int channel)
     if(i != extSfxPlaying.end())
         extSfxPlaying.erase(i);
 }
+#endif
 
 void StopExtSound(const std::string& path)
 {

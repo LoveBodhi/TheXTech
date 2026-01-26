@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <functional>
 #include <iterator>
 
-// an extremely simple introsort implementation intended for correctness as a stable sort, and code size.
+// an extremely simple insertion sort implementation intended for correctness as a stable sort, and code size.
 // DO NOT USE IF PERFORMANCE IS IMPORTANT.
 template<class it, class compare_func>
 inline void tinysort(it begin, it end, compare_func comp)

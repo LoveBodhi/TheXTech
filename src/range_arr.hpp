@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,19 @@
 #define RANGE_ARR_HPP
 
 #include <cstddef>
-#include <cstring>
+
 #ifndef RANGE_ARR_UNSAFE_MODE
-#include "sdl_proxy/sdl_assert.h"
+#include "core/xerror.h"
+#endif
+
+#if defined(__clang__)
+#   define RANGE_ARR_UNREACHABLE(cond) __builtin_assume(cond)
+#elif defined(__GNUC__)
+#   define RANGE_ARR_UNREACHABLE(cond) __builtin_unreachable()
+#elif defined(_MSC_VER)
+#   define RANGE_ARR_UNREACHABLE(cond) __assume(cond)
+#else
+#   define RANGE_ARR_UNREACHABLE(cond)
 #endif
 
 #define For(A, From, To) for(int A = From; A <= To; ++A)
@@ -108,8 +118,12 @@ public:
 #   ifdef RANGE_ARR_USE_HEAP
         SDL_assert_release(array); // When array won't initialize
 #   endif
-        SDL_assert_release(index <= end);
-        SDL_assert_release(index >= begin);
+        if(index > end || index < begin)
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index <= end || index >= begin);
+        }
+
         return *(array + index + offset);
     }
 
@@ -118,8 +132,12 @@ public:
 #   ifdef RANGE_ARR_USE_HEAP
         SDL_assert_release(array); // When array won't initialize
 #   endif
-        SDL_assert_release(index <= end);
-        SDL_assert_release(index >= begin);
+        if(index > end || index < begin)
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
+
         return *(array + index + offset);
     }
 #endif
@@ -205,8 +223,12 @@ public:
 #   ifdef RANGE_ARR_USE_HEAP
         SDL_assert_release(array); // When array won't initialize
 #   endif
-        SDL_assert_release(index <= end);
-        SDL_assert_release(index >= begin);
+        if(index > end || index < begin)
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
+
         return *(array + index + offset);
     }
 
@@ -215,8 +237,12 @@ public:
 #   ifdef RANGE_ARR_USE_HEAP
         SDL_assert_release(array); // When array won't initialize
 #   endif
-        SDL_assert_release(index <= end);
-        SDL_assert_release(index >= begin);
+        if(index > end || index < begin)
+        {
+            fatal_assert_rangearr(begin, end, index);
+            RANGE_ARR_UNREACHABLE(index >= begin || index <= end);
+        }
+
         return *(array + index + offset);
     }
 #endif

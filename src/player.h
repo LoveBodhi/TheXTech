@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,6 +67,8 @@ void ProcessLastDead();
 void UnDuck(struct Player_t &p);
 // Public Sub CheckSection(A As Integer)
 void CheckSection(const int A);
+// special CheckSection routine used to initialize players, allows music in section 0 to play
+void CheckSection_Init(const int A);
 // Public Sub PlayerFrame(A As Integer)
 void PlayerFrame(const int A);
 void PlayerFrame(struct Player_t &p);

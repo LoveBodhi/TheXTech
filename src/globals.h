@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,12 @@
 //Public OnlineDisc As Boolean
 
 #define UNUSED(x) (void)x
+
+#if defined(__GNUC__)
+#   define ATTRIB_UNUSED    __attribute__((unused))
+#else
+#   define ATTRIB_UNUSED
+#endif
 
 #define IF_OUTRANGE(x, l, r)  ((x) < (l) || (x) > (r))
 #define IF_INRANGE(x, l, r)  ((x) >= (l) && (x) <= (r))
@@ -903,7 +909,8 @@ struct Block_t
 //    Slippy As Boolean
     bool Slippy = false;
 //    RespawnDelay As Integer
-    vbint_t RespawnDelay = 0;
+    // Newly re-used to represent which screens can still hit the block (outside of Battle Mode)
+    uint16_t RespawnDelay_ScreensLeft = 0;
 //    RapidHit As Integer
     vbint_t RapidHit = 0;
 //    DefaultType As Integer
@@ -1437,30 +1444,7 @@ extern bool g_forceCharacter;
 //Public blockCharacter(0 To 20) As Boolean
 extern RangeArrI<bool, 0, 20, false> blockCharacter;
 
-//Public Type SelectWorld
-struct SelectWorld_t
-{
-//    WorldName As String
-    std::string WorldName;
-//    WorldPath As String
-    std::string WorldPath;
-//    WorldFile As String
-    std::string WorldFile;
-//    blockChar(1 To numCharacters) As Boolean
-    RangeArrI<bool, 1, numCharacters, false> blockChar;
-// EXTRA:
-    bool bugfixes_on_by_default = false;
-    bool editable = false;
-    bool highlight = false;
-    bool disabled = false;
-    bool probably_incompatible = false;
-
-#ifdef THEXTECH_ENABLE_SDL_NET
-    // content hash of packed episode
-    uint32_t lz4_content_hash = 0;
-#endif
-//End Type
-};
+struct SelectWorld_t; // moved to main_menu.h
 
 //Public OwedMount(0 To maxPlayers) As Integer 'when a yoshi/boot is taken from the player this returns after going back to the world map
 extern RangeArrI<vbint_t, 0, maxPlayers, 0> OwedMount;
@@ -1891,6 +1875,7 @@ extern EditorControls_t EditorControls;
 
 extern bool SharedPause;
 extern bool SharedPauseLegacy;
+extern bool SharedPauseForce;
 
 // extern RangeArr<CursorControls_t, 1, maxLocalPlayers> PlayerCursor;
 
@@ -1914,9 +1899,10 @@ enum LevelMacro_t
     LEVELMACRO_STAR_EXIT = 6,
     LEVELMACRO_GOAL_TAPE_EXIT = 7,
     LEVELMACRO_FLAG_EXIT = 8,
+    LEVELMACRO_ALT_FLAG_EXIT = 9, // reserved
 };
 //Public LevelMacro As Integer 'Shows a level outro when beat
-extern int LevelMacro;
+extern LevelMacro_t LevelMacro;
 
 //Public LevelMacroCounter As Integer
 extern int LevelMacroCounter;
@@ -1975,8 +1961,32 @@ extern bool LevelSelect;
 extern bool LevelRestartRequested;
 //Public WorldPlayer(1) As WorldPlayer
 extern RangeArr<WorldPlayer_t, 0, 1> WorldPlayer;
+
+// unsafe to reorder these -- they are used in the WLD format and also included in the save file
+enum LevelBeatCode_t
+{
+    BEATCODE_SETUP = -3,
+    BEATCODE_RESTART = -2,
+    BEATCODE_QUIT = -1,
+    BEATCODE_NONE = 0,
+    BEATCODE_CARD_ROULETTE = 1,
+    BEATCODE_QUESTION_SPHERE = 2,
+    BEATCODE_OFFSCREEN = 3,
+    BEATCODE_KEYHOLE = 4,
+    BEATCODE_CRYSTAL_BALL = 5,
+    BEATCODE_WARP = 6,
+    BEATCODE_STAR = 7,
+    BEATCODE_GOAL_TAPE = 8,
+    BEATCODE_FLAG = 9,      // new
+    BEATCODE_ALT_FLAG = 10, // new, not yet implemented
+    BEATCODE_RESERVED_1 = 11,    // new, reserved for scripting
+    BEATCODE_RESERVED_2 = 12,    // new, reserved for scripting
+    BEATCODE_RESERVED_3 = 13,    // new, reserved for scripting
+    BEATCODE_RESERVED_4 = 14,    // new, reserved for scripting
+    BEATCODE_GAME_COMPLETE = 15, // new, used to mark the game as completed from this level
+};
 //Public LevelBeatCode As Integer ' code for the way the plauer beat the level
-extern int LevelBeatCode;
+extern LevelBeatCode_t LevelBeatCode;
 //Public curWorldLevel As Integer
 extern int curWorldLevel;
 //Public curWorldMusic As Integer
@@ -2106,11 +2116,11 @@ extern bool BeatTheGame;
 //extern double overTime;
 //'------------------
 //Public worldCurs As Integer
-extern int worldCurs;
+// extern int worldCurs;
 //Public minShow As Integer
-extern int minShow;
+// extern int minShow;
 //Public maxShow As Integer
-extern int maxShow;
+// extern int maxShow;
 
 //Public Type Physics
 struct Physics_t

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ void ProcessSmallScreenCam(vScreen_t& vscreen)
                 vscreen.small_screen_features.offset_x -= rateX;
         }
 
-        vscreen.X -= rate * vscreen.small_screen_features.offset_x / 2;
+        vscreen.X -= (int)(rate * vscreen.small_screen_features.offset_x / 2);
     }
 
     if(g_config.small_screen_cam && screen.H < c_screen.H)
@@ -192,7 +192,7 @@ void ProcessSmallScreenCam(vScreen_t& vscreen)
         fix_default_offset *= (c_screen.H - screen.H) - std::abs(lookY) * 2;
         fix_default_offset /= (c_screen.H - screen.H);
 
-        vscreen.Y += rate * (lookY + fix_default_offset);
+        vscreen.Y += (int)(rate * (lookY + fix_default_offset));
     }
 }
 

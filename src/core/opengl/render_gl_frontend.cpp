@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -309,7 +309,7 @@ bool RenderGL::initRender(SDL_Window *window)
         return false;
     }
 
-    std::string init_string = fmt::sprintf_ne("Initialized OpenGL %d.%d-%d", m_gl_majver, m_gl_minver, get_profile_letter(m_gl_profile));
+    std::string init_string = fmt::sprintf_ne("Initialized OpenGL %d.%d-%c", m_gl_majver, m_gl_minver, get_profile_letter(m_gl_profile));
 
     init_string += " with draw features: ";
     if(m_use_logicop)
@@ -339,7 +339,7 @@ bool RenderGL::initRender(SDL_Window *window)
     if(m_depth_read_texture)
         init_string += "depth read";
 
-    pLogInfo(init_string.c_str());
+    pLogInfo(init_string);
 
     GLenum err = glGetError();
     if(err)
@@ -1113,7 +1113,7 @@ void RenderGL::unloadTexture(StdPicture &tx)
     if(corpseIt != m_loadedPictures.end())
         m_loadedPictures.erase(corpseIt);
 
-    D_pLogDebug("RenderGL: unloading texture at %p, new texture count %d...", &tx, (int)m_loadedPictures.size());
+    D_pLogDebug("RenderGL: unloading texture at %p, new texture count %d...", static_cast<void*>(&tx), (int)m_loadedPictures.size());
 
     if(tx.d.texture_id)
         glDeleteTextures(1, &tx.d.texture_id);
@@ -1138,7 +1138,7 @@ void RenderGL::unloadGifTextures()
     {
         if(!tx->l.rawMask.empty())
         {
-            D_pLogDebug("RenderGL: unloading texture at %p on unloadGifTextures()", tx);
+            D_pLogDebug("RenderGL: unloading texture at %p on unloadGifTextures()", static_cast<void*>(tx));
             unloadTexture(*tx);
         }
     }
@@ -1148,7 +1148,7 @@ void RenderGL::clearAllTextures()
 {
     for(StdPicture *tx : m_loadedPictures)
     {
-        D_pLogDebug("RenderGL: unloading texture at %p on clearAllTextures()", tx);
+        D_pLogDebug("RenderGL: unloading texture at %p on clearAllTextures()", static_cast<void*>(tx));
 
         if(tx->d.texture_id)
             glDeleteTextures(1, &tx->d.texture_id);

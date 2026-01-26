@@ -1,6 +1,6 @@
 /*
  * Moondust, a free game engine for platform game making
- * Copyright (c) 2014-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2014-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This software is licensed under a dual license system (MIT or GPL version 3 or later).
  * This means you are free to choose with which of both licenses (MIT or GPL version 3 or later)
@@ -579,7 +579,7 @@ bool GraphicsHelps::validateFor2xScaleDown(FIBITMAP *image, const std::string &o
 
     if(w % 2 || h % 2)
     {
-        D_pLogWarning("Texture can't be shrank, non-multiple size: %u x %u (%s)", w, h, origPath.c_str());
+        D_pLogWarning("Texture can't be shrank, non-multiple size: %" PRIu32 " x %" PRIu32 " (%s)", w, h, origPath.c_str());
         return false; // Not multiple two!
     }
 
@@ -591,7 +591,7 @@ bool GraphicsHelps::validateFor2xScaleDown(FIBITMAP *image, const std::string &o
                 || img_pixels[y * pitch_px + x] != img_pixels[(y + 1) * pitch_px + x]
                 || img_pixels[y * pitch_px + x] != img_pixels[(y + 1) * pitch_px + (x + 1)])
             {
-                D_pLogWarning("Texture can't be shrank: Pixel colors at the %u x %u sector (2x2 square) aren't equal (%s)", x, y, origPath.c_str());
+                D_pLogWarning("Texture can't be shrank: Pixel colors at the %" PRIu32 " x %" PRIu32 " sector (2x2 square) aren't equal (%s)", x, y, origPath.c_str());
                 return false;
             }
         }

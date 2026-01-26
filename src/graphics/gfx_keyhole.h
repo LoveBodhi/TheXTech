@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,19 +24,21 @@
 
 #include "std_picture.h"
 
+struct Player_t;
+
 void RenderKeyhole(int Z);
 
-void RenderTexturePlayer(int Z, int dst_x, int dst_y, int dst_w, int dst_h,
+void RenderTexturePlayer(int Z, const Player_t& p, int dst_x, int dst_y, int dst_w, int dst_h,
                          StdPicture& tex,
                          int src_x = 0, int src_y = 0,
                          XTColor color = XTColor());
 
-void RenderTexturePlayer(int Z, double dst_x, double dst_y, double dst_w, double dst_h,
+void RenderTexturePlayer(int Z, const Player_t& p, double dst_x, double dst_y, double dst_w, double dst_h,
                          StdPicture& tex,
                          double src_x = 0, double src_y = 0,
                          XTColor color = XTColor()) = delete;
 
-void RenderTexturePlayerScale(int Z, int dst_x, int dst_y, int dst_w, int dst_h,
+void RenderTexturePlayerScale(int Z, const Player_t& p, int dst_x, int dst_y, int dst_w, int dst_h,
                          StdPicture& tex,
                          int src_x, int src_y, int src_w, int src_h,
                          XTColor color = XTColor());

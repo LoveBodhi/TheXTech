@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ enum PLANE
     PLANE_LVL_INFO       = 0x90, // level info, currently includes warp info (star count), editor water rects, and editor info
     PLANE_LVL_SECTION_FG = 0x98, // highest game-space draws, includes Luna draws, Section FX
     PLANE_LVL_3D_POS1    = 0xA0, // start of +1 plane on 3DS (level)
-    PLANE_LVL_HUD        = 0xA0, // includes dropped NPCs (at +1)
-    PLANE_LVL_META       = 0xA8, // information drawn above the HUD but still in the vScreen (includes level vScreen fader)
+    PLANE_LVL_HUD        = 0xA0, // includes dropped NPCs (at +1), and level vScreen fader (at -1)
+    PLANE_LVL_META       = 0xA8, // information drawn above the HUD but still in the vScreen
 
     PLANE_WLD_3D_NEG2    = 0x00, // start of -2 plane on 3DS (world)
     PLANE_WLD_BG         = 0x10, // reserved for future background draws on the world map

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,10 +43,7 @@
 void NPCHit(int A, int B, int C)
 {
     // NPC_t tempNPC;
-    Location_t tempLocation;
-
-    // NEWLY used to check when NPC's tree location needs to be updated
-    NPC_t oldNPC = NPC[A];
+    // Location_t tempLocation;
 
     // if(B == 1 && C != 0)
     //     Controls::Rumble(C, 50, .25);
@@ -161,6 +158,7 @@ void NPCHit(int A, int B, int C)
             }
 
             NewEffect(EFFID_SMOKE_S3, NPC[A].Location);
+            Location_t tempLocation;
             for(C = 1; C <= 20; C++)
             {
                 NewEffect_IceSparkle(NPC[A], tempLocation);
@@ -239,6 +237,11 @@ void NPCHit(int A, int B, int C)
         }
     }
 
+    // NEWLY used to check when NPC's tree location needs to be updated
+    NPC_t oldNPC = NPC[A];
+
+    // BEGIN NORMAL LOGIC: giant switch over NPC's type
+
     // Yoshi Ice
     if(NPC[A].Type == NPCID_ICE_BLOCK)
     {
@@ -316,7 +319,7 @@ void NPCHit(int A, int B, int C)
             NPC[A].Direction = Player[C].Direction;
     }
     // SMB2 Grass
-    else if(B == 10 && (NPC[A].Type == NPCID_ITEM_BURIED || NPCIsVeggie(NPC[A])))
+    else if(B == 10 && (NPC[A].Type == NPCID_ITEM_BURIED || NPCIsVeggie(NPC[A].Type)))
     {
         // Unbury code (v2)
         if(NPC[A].Type == NPCID_ITEM_BURIED)
@@ -338,31 +341,8 @@ void NPCHit(int A, int B, int C)
 
         NPC[A].Direction = Player[C].Direction;
 
-#if 0
-        / NOT a generator, this was tested above
-        if(NPC[A].Generator)
-        {
-            NPC[A].Generator = false;
-            NPCQueues::update(A);
-        }
-#endif
+        NPCUnbury(A, 2);
 
-        NPC[A].Frame = 0;
-        NPC[A].Frame = EditorNPCFrame(NPC[A].Type, NPC[A].Direction);
-        CharStuff(A);
-        NPC[A].Special = 0;
-        if(NPCIsYoshi(NPC[A]))
-        {
-            NPC[A].Special = NPC[A].Type;
-            NPC[A].Type = NPCID_ITEM_POD;
-        }
-        if(!(NPC[A].Type == NPCID_CANNONENEMY || NPC[A].Type == NPCID_CANNONITEM || NPC[A].Type == NPCID_SPRING || NPC[A].Type == NPCID_KEY || NPC[A].Type == NPCID_COIN_SWITCH || NPC[A].Type == NPCID_GRN_BOOT || NPC[A].Type == NPCID_RED_BOOT || NPC[A].Type == NPCID_BLU_BOOT || NPC[A].Type == NPCID_TOOTHYPIPE || NPCIsAnExit(NPC[A])))
-        {
-            if(!BattleMode)
-                NPC[A].DefaultType = NPCID_NULL;
-        }
-        NPC[A].Location.Height = NPC[A]->THeight;
-        NPC[A].Location.Width = NPC[A]->TWidth;
         NPC[A].Location.Y += -NPC[A].Location.Height;
         NPC[A].Location.SpeedX = (3 + dRand()) * Player[C].Direction;
         if(NPC[A].Type == NPCID_BULLET)
@@ -370,7 +350,7 @@ void NPCHit(int A, int B, int C)
         NPC[A].Location.SpeedY = -4;
         NPC[A].CantHurtPlayer = C;
         NPC[A].CantHurt = 30;
-        if(NPCIsVeggie(NPC[A]) || NPC[A].Type == NPCID_HEAVY_THROWER || NPC[A].Type == NPCID_GEM_1 || NPC[A].Type == NPCID_GEM_5)
+        if(NPCIsVeggie(NPC[A].Type) || NPC[A].Type == NPCID_HEAVY_THROWER || NPC[A].Type == NPCID_GEM_1 || NPC[A].Type == NPCID_GEM_5)
         {
             if(NPC[A].Type != NPCID_GEM_5)
                 NPC[A].Type = NPCID_GEM_1;
@@ -751,7 +731,7 @@ void NPCHit(int A, int B, int C)
         }
         else if(B == 3)
         {
-            if(NPCIsVeggie(NPC[C]))
+            if(NPCIsVeggie(NPC[C].Type))
             {
                 if(NPC[A].Special == 1)
                 {
@@ -1053,7 +1033,7 @@ void NPCHit(int A, int B, int C)
             NPC[A].Killed = B;
     }
     // Veggies
-    else if(NPCIsVeggie(NPC[A]))
+    else if(NPCIsVeggie(NPC[A].Type))
     {
         if(B == 5)
         {
@@ -1180,7 +1160,7 @@ void NPCHit(int A, int B, int C)
             NPC[A].Location.Height = 28;
     }
     // Friendly NPCs (Toad, Peach, Link, Luigi, Etc.)
-    else if(NPCIsToad(NPC[A]))
+    else if(NPCIsToad(NPC[A].Type))
     {
         if(B == 2 && NPC[A].Location.SpeedY > -4)
         {
@@ -1283,11 +1263,19 @@ void NPCHit(int A, int B, int C)
         }
     }
     // Things With Shells (Koopa Troopa, Buzzy Beetle, Etc.)
-    else if(NPC[A].Type == NPCID_GRN_TURTLE_S3 || NPC[A].Type == NPCID_RED_TURTLE_S3 || NPC[A].Type == NPCID_GLASS_TURTLE || NPC[A].Type == NPCID_BIG_TURTLE || NPCIsAParaTroopa(NPC[A]) || (NPC[A].Type >= NPCID_GRN_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_TURTLE_S4) || NPC[A].Type == NPCID_GRN_TURTLE_S1 || NPC[A].Type == NPCID_RED_TURTLE_S1 || NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1 || NPC[A].Type == NPCID_RED_FLY_TURTLE_S1)
+    else if(NPC[A].Type == NPCID_GRN_TURTLE_S3 || NPC[A].Type == NPCID_RED_TURTLE_S3 || NPC[A].Type == NPCID_GLASS_TURTLE || NPC[A].Type == NPCID_BIG_TURTLE || NPCIsAParaTroopa(NPC[A].Type)
+        || (NPC[A].Type >= NPCID_GRN_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_TURTLE_S4)
+        || NPC[A].Type == NPCID_GRN_TURTLE_S1 || NPC[A].Type == NPCID_RED_TURTLE_S1
+        /* || NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1 || NPC[A].Type == NPCID_RED_FLY_TURTLE_S1 */ // implied by NPCIsAParaTroopa
+    )
     {
-        if(B == 1 && !NPC[A].Wings)
+        if((B == 1 && !NPC[A].Wings) || B == 2 || B == 7)
         {
-            PlaySoundSpatial(SFX_Stomp, NPC[A].Location);
+            PlaySoundSpatial((B == 1) ? SFX_Stomp : SFX_ShellHit, NPC[A].Location);
+
+            if(B != 1)
+                NPC[A].Projectile = true;
+
             NPC[A].Location.Y += NPC[A].Location.Height;
             NPC[A].Location.X += NPC[A].Location.Width / 2;
             if(NPC[A].Type == NPCID_GRN_TURTLE_S3)
@@ -1297,129 +1285,57 @@ void NPCHit(int A, int B, int C)
             else if(NPC[A].Type == NPCID_BIG_TURTLE)
                 NPC[A].Type = NPCID_BIG_SHELL;
             else if(NPC[A].Type == NPCID_GRN_FLY_TURTLE_S3) // winged green koopa
-                NPC[A].Type = NPCID_GRN_TURTLE_S3;
+                NPC[A].Type = (B == 1) ? NPCID_GRN_TURTLE_S3 : NPCID_GRN_SHELL_S3;
             else if(NPC[A].Type == NPCID_RED_FLY_TURTLE_S3) // winged red koopa
-                NPC[A].Type = NPCID_RED_TURTLE_S3;
-            else if(NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1) // smb1 winged green koopa
-                NPC[A].Type = NPCID_GRN_TURTLE_S1;
-            else if(NPC[A].Type == NPCID_RED_FLY_TURTLE_S1) // smb winged red koopa
-                NPC[A].Type = NPCID_RED_TURTLE_S1;
-            else if(NPC[A].Type == NPCID_GRN_TURTLE_S1) // smb1 green koopa
+                NPC[A].Type = (B == 1) ? NPCID_RED_TURTLE_S3 : NPCID_RED_SHELL_S3;
+            else if(NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1 || NPC[A].Type == NPCID_RED_FLY_TURTLE_S1) // smb1 winged koopa
             {
-                NPC[A].Type = NPCID_GRN_SHELL_S1;
-                NPC[A].Location.Height = 28;
+                NPC[A].Type = (NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1) ? NPCID_GRN_TURTLE_S1 : NPCID_RED_TURTLE_S1;
+                if(B != 1)
+                {
+                    NPC[A].Type = NPCID(NPC[A].Type - 1); // to shell
+                    // NPC[A].Location.Height = 28; // reset below
+                }
             }
-            else if(NPC[A].Type == NPCID_RED_TURTLE_S1) // smb red koopa
+            else if(NPC[A].Type == NPCID_GRN_TURTLE_S1 || NPC[A].Type == NPCID_RED_TURTLE_S1) // smb1 koopa
             {
-                NPC[A].Type = NPCID_RED_SHELL_S1;
-                NPC[A].Location.Height = 28;
-            }
-            else if(NPC[A].Type == NPCID_GLASS_TURTLE)
-                NPC[A].Type = NPCID_GLASS_SHELL;
-            else if(NPC[A].Type >= NPCID_GRN_FLY_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_FLY_TURTLE_S4) // smw winged koopas
-            {
-                NPC[A].Type = NPCID(NPC[A].Type - 12);
-                NPC[A].Special = 0;
-            }
-            else
-            {
-                numNPCs++;
-                NPC[numNPCs] = NPC_t();
-                NPC[numNPCs].Location = NPC[A].Location;
-                NPC[numNPCs].Location.Y -= 32;
-                NPC[numNPCs].Type = NPCID(NPC[A].Type + 8);
-                NPC[numNPCs].Projectile = true;
-                NPC[numNPCs].Direction = Player[C].Direction;
-                NPC[numNPCs].Location.SpeedY = 0;
-                NPC[numNPCs].Location.SpeedX = Physics.NPCShellSpeed * NPC[numNPCs].Direction;
-                NPC[numNPCs].Location.X += -16 + NPC[numNPCs].Location.SpeedX;
-                CheckSectionNPC(numNPCs);
-                NPC[numNPCs].CantHurtPlayer = C;
-                NPC[numNPCs].CantHurt = 6;
-                NPC[numNPCs].Active = true;
-                NPC[numNPCs].TimeLeft = 100;
-                syncLayers_NPC(numNPCs);
-                NPC[A].Type = NPCID(NPC[A].Type + 4);
-            }
-            NPC[A].Location.Height = NPC[A]->THeight;
-            NPC[A].Location.Width = NPC[A]->TWidth;
-
-            NPCQueues::Unchecked.push_back(A);
-
-            NPC[A].Location.Y -= NPC[A].Location.Height;
-            NPC[A].Location.X += -(NPC[A].Location.Width / 2) - NPC[A].Direction * 2;
-            NPC[A].Location.SpeedX = 0;
-            NPC[A].Location.SpeedY = 0;
-            NPC[A].RealSpeedX = 0;
-            NPC[A].Special = 0;
-            NPC[A].Frame = 0;
-            D_pLogDebug("Shell stomp, X distance: [%g], Y=[%g]", (double)num_t::abs(NPC[numNPCs].Location.X - NPC[A].Location.X), (double)NPC[numNPCs].Location.Y);
-            if(NPC[A].Type >= NPCID_GRN_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_HIT_TURTLE_S4)
-                NewEffect(EFFID_SMOKE_S3, NPC[A].Location);
-        }
-        else if(B == 2 || B == 7)
-        {
-            PlaySoundSpatial(SFX_ShellHit, NPC[A].Location);
-            NPC[A].Projectile = true;
-            NPC[A].Location.Y += NPC[A].Location.Height;
-            NPC[A].Location.X += NPC[A].Location.Width / 2;
-            if(NPC[A].Type == NPCID_GRN_TURTLE_S3 || NPC[A].Type == NPCID_GRN_FLY_TURTLE_S3)
-                NPC[A].Type = NPCID_GRN_SHELL_S3;
-            else if(NPC[A].Type == NPCID_RED_TURTLE_S3 || NPC[A].Type == NPCID_RED_FLY_TURTLE_S3)
-                NPC[A].Type = NPCID_RED_SHELL_S3;
-            else if(NPC[A].Type == NPCID_BIG_TURTLE)
-                NPC[A].Type = NPCID_BIG_SHELL;
-            else if(NPC[A].Type == NPCID_RED_FLY_TURTLE_S3) // winged red koopa
-                NPC[A].Type = NPCID_RED_TURTLE_S3;
-            else if(NPC[A].Type == NPCID_GRN_FLY_TURTLE_S1) // smb1 winged green koopa
-            {
-                NPC[A].Type = NPCID_GRN_SHELL_S1;
-                NPC[A].Location.Height = 28;
-            }
-            else if(NPC[A].Type == NPCID_RED_FLY_TURTLE_S1) // smb winged red koopa
-            {
-                NPC[A].Type = NPCID_RED_SHELL_S1;
-                NPC[A].Location.Height = 28;
-            }
-            else if(NPC[A].Type == NPCID_GRN_TURTLE_S1) // smb1 green koopa
-            {
-                NPC[A].Type = NPCID_GRN_SHELL_S1;
-                NPC[A].Location.Height = 28;
-            }
-            else if(NPC[A].Type == NPCID_RED_TURTLE_S1) // smb red koopa
-            {
-                NPC[A].Type = NPCID_RED_SHELL_S1;
-                NPC[A].Location.Height = 28;
+                NPC[A].Type = NPCID(NPC[A].Type - 1); // to shell
+                // NPC[A].Location.Height = 28; // reset below
             }
             else if(NPC[A].Type == NPCID_GLASS_TURTLE)
                 NPC[A].Type = NPCID_GLASS_SHELL;
             else if(NPC[A].Type >= NPCID_GRN_FLY_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_FLY_TURTLE_S4)
             {
                 NPC[A].Type = NPCID(NPC[A].Type - 12);
-                NPC[A].Special = 0;
+                // NPC[A].Special = 0; // also set below
             }
-            else
-                NPC[A].Type = NPCID(NPC[A].Type + 4);
-
-            if(B == 7 && NPC[A].Type >= NPCID_GRN_SHELL_S4 && NPC[A].Type <= NPCID_GRN_HIT_TURTLE_S4)
+            else if(B != 2) // turn S4 turtles into shells and release inner turtles
             {
+                // release inner (hit) turtle
                 numNPCs++;
-                NPC[numNPCs] = NPC_t();
                 NPC[numNPCs].Location = NPC[A].Location;
                 NPC[numNPCs].Location.Y -= 32;
-                NPC[numNPCs].Type = NPCID(NPC[A].Type + 4);
+                NPC[numNPCs].Type = NPCID(NPC[A].Type + 8); // to hit turtle
                 NPC[numNPCs].Projectile = true;
                 NPC[numNPCs].Direction = Player[C].Direction;
                 NPC[numNPCs].Location.SpeedY = 0;
                 NPC[numNPCs].Location.SpeedX = Physics.NPCShellSpeed * NPC[numNPCs].Direction;
-                NPC[numNPCs].Location.X += -(16 + 32 * NPC[numNPCs].Direction);
-                CheckSectionNPC(numNPCs);
+                // logic to prevent double-hitting is different in stomp and whip cases
+                NPC[numNPCs].Location.X += -16 + (B == 1 ? NPC[numNPCs].Location.SpeedX : (32 * NPC[numNPCs].Direction));
                 NPC[numNPCs].CantHurtPlayer = C;
                 NPC[numNPCs].CantHurt = 6;
                 NPC[numNPCs].Active = true;
                 NPC[numNPCs].TimeLeft = 100;
+                CheckSectionNPC(numNPCs);
                 syncLayers_NPC(numNPCs);
+
+                NPC[A].Type = NPCID(NPC[A].Type + 4); // to shell
             }
+            else // turn S4 turtles into shells without inner turtles if hit from below
+                NPC[A].Type = NPCID(NPC[A].Type + 4);
+
+            NPC[A].Special = 0;
+            NPC[A].Frame = 0;
 
             NPC[A].Location.Height = NPC[A]->THeight;
             NPC[A].Location.Width = NPC[A]->TWidth;
@@ -1427,13 +1343,24 @@ void NPCHit(int A, int B, int C)
             NPC[A].Location.X += -(NPC[A].Location.Width / 2) - NPC[A].Direction * 2;
             NPC[A].Location.SpeedX = 0;
 
-            NPCQueues::Unchecked.push_back(A);
+            if(B == 1)
+            {
+                NPC[A].Location.SpeedY = 0;
+                NPC[A].RealSpeedX = 0;
 
-            NPC[A].Special = 0;
-            NPC[A].Frame = 0;
-            NPC[A].Location.SpeedY = -5;
-            if(B == 2)
-                NPC[A].Location.Y = Block[C].Location.Y - NPC[A].Location.Height - 0.01_n;
+                D_pLogDebug("Shell stomp, X distance: [%g], Y=[%g]", (double)num_t::abs(NPC[numNPCs].Location.X - NPC[A].Location.X), (double)NPC[numNPCs].Location.Y);
+
+                if(NPC[A].Type >= NPCID_GRN_TURTLE_S4 && NPC[A].Type <= NPCID_YEL_HIT_TURTLE_S4)
+                    NewEffect(EFFID_SMOKE_S3, NPC[A].Location);
+            }
+            else
+            {
+                NPC[A].Location.SpeedY = -5;
+                if(B == 2)
+                    NPC[A].Location.Y = Block[C].Location.Y - NPC[A].Location.Height - 0.01_n;
+            }
+
+            NPCQueues::Unchecked.push_back(A);
         }
         else
         {
@@ -1445,6 +1372,7 @@ void NPCHit(int A, int B, int C)
             else
                 NPC[A].Killed = B;
         }
+
         if(NPC[A]->IsAShell)
             NPC[A].Stuck = false;
     }
@@ -1531,6 +1459,7 @@ void NPCHit(int A, int B, int C)
         }
         else if(B == 6)
         {
+            Location_t tempLocation;
             tempLocation.Y = NPC[A].Location.Y + NPC[A].Location.Height - 2;
             tempLocation.X = NPC[A].Location.X - 4 + dRand().times(NPC[A].Location.Width + 8) - 4;
             NewEffect(EFFID_SKID_DUST, tempLocation);
@@ -1584,6 +1513,7 @@ void NPCHit(int A, int B, int C)
         {
             if(NPC[A].Type == NPCID_FLIPPED_RAINBOW_SHELL)
             {
+                Location_t tempLocation;
                 tempLocation.Y = NPC[A].Location.Y + NPC[A].Location.Height - 2;
                 tempLocation.X = NPC[A].Location.X - 4 + dRand().times(NPC[A].Location.Width + 8) - 4;
                 NewEffect(EFFID_SKID_DUST, tempLocation);
@@ -1892,7 +1822,7 @@ void NPCHit(int A, int B, int C)
         }
     }
     // Indestructable Objects
-    else if(NPC[A].Type == NPCID_CANNONENEMY || NPC[A].Type == NPCID_CANNONITEM || NPC[A].Type == NPCID_SPRING || NPC[A].Type == NPCID_KEY || NPC[A].Type == NPCID_COIN_SWITCH || NPC[A].Type == NPCID_TIME_SWITCH || NPC[A].Type == NPCID_TNT || NPC[A].Type == NPCID_GRN_BOOT || NPC[A].Type == NPCID_RED_BOOT || NPC[A].Type == NPCID_BLU_BOOT || NPC[A].Type == NPCID_TOOTHYPIPE || NPCIsYoshi(NPC[A]) || NPC[A].Type == NPCID_ITEM_POD || (NPC[A].Type >= NPCID_CARRY_BLOCK_A && NPC[A].Type <= NPCID_CARRY_BLOCK_D) || NPC[A].Type == NPCID_TIMER_S2 || NPC[A].Type == NPCID_EARTHQUAKE_BLOCK || NPC[A].Type == NPCID_FLY_BLOCK || NPC[A].Type == NPCID_FLY_CANNON)
+    else if(NPC[A].Type == NPCID_CANNONENEMY || NPC[A].Type == NPCID_CANNONITEM || NPC[A].Type == NPCID_SPRING || NPC[A].Type == NPCID_KEY || NPC[A].Type == NPCID_COIN_SWITCH || NPC[A].Type == NPCID_TIME_SWITCH || NPC[A].Type == NPCID_TNT || NPC[A].Type == NPCID_GRN_BOOT || NPC[A].Type == NPCID_RED_BOOT || NPC[A].Type == NPCID_BLU_BOOT || NPC[A].Type == NPCID_TOOTHYPIPE || NPCIsYoshi(NPC[A].Type) || NPC[A].Type == NPCID_ITEM_POD || (NPC[A].Type >= NPCID_CARRY_BLOCK_A && NPC[A].Type <= NPCID_CARRY_BLOCK_D) || NPC[A].Type == NPCID_TIMER_S2 || NPC[A].Type == NPCID_EARTHQUAKE_BLOCK || NPC[A].Type == NPCID_FLY_BLOCK || NPC[A].Type == NPCID_FLY_CANNON)
     {
         if(NPC[A].Type == NPCID_EARTHQUAKE_BLOCK && (B == 4 || B == 5 || B == 10))
         {
@@ -1950,6 +1880,7 @@ void NPCHit(int A, int B, int C)
             {
                 if(NPC[A].Type == NPCID_RED_BOOT)
                 {
+                    Location_t tempLocation;
                     tempLocation.Y = NPC[A].Location.Y + NPC[A].Location.Height - 2;
                     // tempLocation.X = .Location.X + .Location.Width / 2 - 4 '+ 4 * .Direction
                     tempLocation.X = NPC[A].Location.X - 4 + dRand().times(NPC[A].Location.Width + 8) - 4;
@@ -2079,7 +2010,7 @@ void NPCHit(int A, int B, int C)
             NPC[A].Killed = B;
     }
     // Exits
-    else if(NPCIsAnExit(NPC[A]))
+    else if(NPCIsAnExit(NPC[A].Type))
     {
         if(B == 6)
         {
@@ -2167,7 +2098,7 @@ void NPCHit(int A, int B, int C)
         // B == 6 - old behavior, access index C as an NPC
         else if(B == 6 || B == 5 || B == 4)
         {
-            if(!(NPC[C].Type == NPCID_PLR_FIREBALL || NPC[C].Type == NPCID_PET_FIRE || NPC[C].Type == NPCID_PLR_HEAVY || NPCIsVeggie(NPC[C])))
+            if(!(NPC[C].Type == NPCID_PLR_FIREBALL || NPC[C].Type == NPCID_PET_FIRE || NPC[C].Type == NPCID_PLR_HEAVY || NPCIsVeggie(NPC[C].Type)))
                 NPC[A].Killed = B;
         }
         else if(B == 7)
@@ -2308,18 +2239,19 @@ void NPCHit(int A, int B, int C)
         }
         if(NPC[A].Type != NPCID_BOSS_CASE && NPC[A].Type != NPCID_BOSS_FRAGILE)
         {
+            Location_t tempLocation = NPC[C].Location;
+
             if(NPC[A].Location.Width >= 64 || NPC[A].Location.Height >= 64)
             {
-                tempLocation = NPC[C].Location;
                 tempLocation.X = NPC[C].Location.X + NPC[C].Location.Width / 2 - 16 + NPC[C].Location.SpeedX;
                 tempLocation.Y = NPC[C].Location.Y + NPC[C].Location.Height / 2 - 16 + NPC[C].Location.SpeedY;
             }
             else
             {
-                tempLocation = NPC[A].Location;
                 tempLocation.Y = (NPC[C].Location.Y + tempLocation.Y + (NPC[C].Location.Height + tempLocation.Height) / 2) / 2 - 16;
                 tempLocation.X = (NPC[C].Location.X + tempLocation.X + (NPC[C].Location.Width + tempLocation.Width) / 2) / 2 - 16;
             }
+
             NewEffect(EFFID_WHACK, tempLocation);
         }
     }
@@ -2331,14 +2263,16 @@ void NPCHit(int A, int B, int C)
     }
 
     // lose wings and get an extra hit if not a boss
-    if(B == 1 && NPC[A].Wings && NPC[A].Damage == 0)
+    if(NPC[A].Wings && NPC[A].Damage == 0 && (B == 1 || B == 2 || B == 7))
     {
-        if(NPC[A].Location.SpeedY < 0)
+        if(B == 1 && NPC[A].Location.SpeedY < 0)
             NPC[A].Location.SpeedY = 0;
 
-        PlaySoundSpatial(SFX_Stomp, NPC[A].Location);
+        PlaySoundSpatial((B == 1) ? SFX_Stomp : SFX_ShellHit, NPC[A].Location);
+
         NPC[A].Killed = 0;
-        NPC[A].Immune = 4;
+        if(!NPC[A].Immune)
+            NPC[A].Immune = 4;
         NPC[A].Wings = WING_NONE;
     }
 
@@ -2354,21 +2288,18 @@ void NPCHit(int A, int B, int C)
         NPC[A].Location.set_width_center(NPC[A]->TWidth);
     }
 
-    if(NPC[A].Location.Width != oldNPC.Location.Width)
-    {
-        treeNPCUpdate(A);
-        if(NPC[A].tempBlock > 0)
-            treeNPCSplitTempBlock(A);
-
-        NPCQueues::Unchecked.push_back(A);
-    }
-    else if(NPC[A].Location.Height != oldNPC.Location.Height
+    if(NPC[A].Location.Width != oldNPC.Location.Width
+        || NPC[A].Location.Height != oldNPC.Location.Height
         || NPC[A].Location.X != oldNPC.Location.X
         || NPC[A].Location.Y != oldNPC.Location.Y)
     {
-        treeNPCUpdate(A);
-        if(NPC[A].tempBlock > 0)
+        if(NPC[A].Location.Width != oldNPC.Location.Width)
+            NPCQueues::Unchecked.push_back(A);
+
+        bool changed = treeNPCUpdate(A);
+        if(changed && NPC[A].tempBlock > 0)
             treeNPCSplitTempBlock(A);
+
     }
 
     StopHit = 0;

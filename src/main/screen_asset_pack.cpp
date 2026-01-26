@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -324,7 +324,10 @@ void Render(bool now_loading = false)
         if(B > XRender::TargetH)
             B = XRender::TargetH;
 
-        XRender::renderTextureBasic(R - 168, B - 24, GFX.Loader);
+        R -= (GFX.Loader.w + 50);
+        B -= (GFX.Loader.h + 8);
+
+        XRender::renderTextureBasic(R, B, GFX.Loader);
     }
 
     XRender::repaint();
@@ -349,42 +352,32 @@ bool Logic()
     if(SharedCursor.Primary || SharedCursor.Secondary || SharedCursor.Tertiary)
         SharedCursor.Move = true;
 
-    bool leftPressed = l_SharedControls.MenuLeft || SharedCursor.ScrollUp;
-    bool rightPressed = l_SharedControls.MenuRight || SharedCursor.ScrollDown;
+    MenuControls_t menuControls = Controls::GetMenuControls();
 
-    bool menuDoPress = l_SharedControls.MenuDo || l_SharedControls.Pause;
-    bool menuBackPress = l_SharedControls.MenuBack;
+    menuControls.Left |= SharedCursor.ScrollUp;
+    menuControls.Right |= SharedCursor.ScrollDown;
 
-    for(int i = 0; i < l_screen->player_count; i++)
-    {
-        Controls_t &c = Controls::g_RawControls[i];
+    menuControls.Back |= (SharedCursor.Secondary && MenuMouseRelease);
 
-        menuDoPress |= c.Start || c.Jump;
-        menuBackPress |= c.Run;
-
-        leftPressed |= c.Left;
-        rightPressed |= c.Right;
-    }
-
-    menuBackPress |= SharedCursor.Secondary && MenuMouseRelease;
-    menuDoPress |= SharedCursor.Primary && MenuMouseRelease;
-
-    if(menuBackPress && menuDoPress)
-        menuDoPress = false;
+    if(menuControls.Back && menuControls.Do)
+        menuControls.Do = false;
 
     if(!MenuCursorCanMove)
     {
         bool k = false;
-        k |= menuBackPress;
-        k |= menuDoPress;
-        k |= leftPressed;
-        k |= rightPressed;
+        k |= menuControls.Back;
+        k |= menuControls.Do;
+        k |= menuControls.Left;
+        k |= menuControls.Right;
 
         if(!k)
             MenuCursorCanMove = true;
     }
-    else if(menuDoPress)
+    else if(menuControls.Do)
     {
+        MenuCursorCanMove = false;
+        MenuMouseRelease = false;
+
         // check if we are still on the same asset pack
         int cur_idx = s_cur_idx;
         s_cur_idx = -1;
@@ -408,12 +401,10 @@ bool Logic()
             if(!ReloadAssetsFrom(GetAssetPacks()[cur_idx]))
             {
                 s_cur_idx = -1;
+                s_target_idx = -1;
 
-                // stay in the asset pack screen if we haven't loaded any assets yet
-                if(!g_AssetsLoaded)
-                    return false;
-
-                s_AnimatingBack = true;
+                // stay in the asset pack screen
+                return false;
             }
             else
             {
@@ -428,11 +419,9 @@ bool Logic()
         g_LoopActive = false;
         GameMenu = true;
         MenuCursor = 0;
-        MenuCursorCanMove = false;
-        MenuMouseRelease = false;
         return true;
     }
-    else if(menuBackPress && g_AssetsLoaded)
+    else if(menuControls.Back && g_AssetsLoaded)
     {
         PlaySoundMenu(SFX_Slide);
 
@@ -454,14 +443,14 @@ bool Logic()
         MenuMouseRelease = false;
         return true;
     }
-    else if(leftPressed)
+    else if(menuControls.Left)
     {
         MenuCursorCanMove = false;
 
         PlaySoundMenu(SFX_Climbing);
         s_target_idx--;
     }
-    else if(rightPressed)
+    else if(menuControls.Right)
     {
         MenuCursorCanMove = false;
 

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,15 +35,30 @@
 // also defined in "globals.h"
 extern const std::string g_emptyString;
 
+enum class EventContext
+{
+    // proceed as usual
+    Normal = 0,
+    // don't show layer smoke
+    NoEffect,
+    CoinSwitch = NoEffect,
+    // NoEffect, plus don't trigger player warp or screen pan (Modern/Classic mode)
+    InitSetup,
+};
+
 //Public Type Layer
 struct Layer_t
 {
 //    EffectStop As Boolean
     bool EffectStop = false;
-//    Name As String
-    std::string Name;
 //    Hidden As Boolean
     bool Hidden = false;
+    // Index into SavedLayers array, plus 1. (Normally 0, indicating a non-saved layer.)
+    uint8_t SavedLayer = 0;
+    // NEW: time until layer rejoins the main table
+    uint8_t join_timer = 0;
+//    Name As String
+    std::string Name;
 //    SpeedX As Single
     numf_t SpeedX = 0;
 //    SpeedY As Single
@@ -146,6 +161,13 @@ struct Events_t
 //    AutoStart As Boolean
     bool AutoStart = false;
 //End Type
+
+    // reinitialize in place
+    void reinit()
+    {
+        this->~Events_t();
+        new(this)Events_t();
+    }
 };
 
 //Public Layer(0 To 100) As Layer
@@ -264,13 +286,14 @@ void ClearTriggeredEvents();
 
 // Public Sub ProcEvent(EventName As String, Optional NoEffect As Boolean = False)
 void ProcEvent(eventindex_t, bool) = delete; // old signature
+void ProcEvent(eventindex_t, EventContext) = delete; // old signature
 // NEW: added WhichPlayer, 0 by default, to indicate which player triggered the event
-void ProcEvent(eventindex_t index, int WhichPlayer, bool NoEffect = false);
+void ProcEvent(eventindex_t index, int WhichPlayer, EventContext context = EventContext::Normal);
 
 // If this returns an eventindex other than EVENT_NONE, then a pause has been initiated for a message
 // As soon as the pause ends, the call must be re-made with the same arguments, but with resume set to true and index set to the returned eventindex
 // The caller must also support an interrupt and restore routine.
-eventindex_t ProcEvent_Safe(bool resume, eventindex_t index, int WhichPlayer, bool NoEffect = false);
+eventindex_t ProcEvent_Safe(bool resume, eventindex_t index, int WhichPlayer, EventContext context = EventContext::Normal);
 
 // NEW: safe call that adds event to the end of the events queue for the current frame
 void TriggerEvent(eventindex_t index, int WhichPlayer);

@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -473,7 +473,7 @@ void UpdateEditor()
                         if(n.id == NPCID_DOOR_MAKER || n.id == NPCID_MAGIC_DOOR || (n.id == NPCID_ITEM_BURIED && EditorCursor.NPC.Special == NPCID_DOOR_MAKER))
                             n.special_data = EditorCursor.NPC.Variant;
 
-                        if(NPCIsAParaTroopa(n.id) || NPCTraits[n.id].IsFish || n.id == NPCID_FIRE_CHAIN)
+                        if(NPCIsAParaTroopa((NPCID)n.id) || NPCTraits[n.id].IsFish || n.id == NPCID_FIRE_CHAIN)
                             n.special_data = EditorCursor.NPC.Special;
 
                         if(n.id == NPCID_VILLAIN_S3)
@@ -583,6 +583,8 @@ void UpdateEditor()
                     }
 
                     EditorCursor.Warp = Warp[A];
+                    EditorCursor.Layer = EditorCursor.Warp.Layer;
+
                     if(!Warp[A].PlacedEnt && !Warp[A].PlacedExit)
                         KillWarp(A);
                 }
@@ -1648,14 +1650,14 @@ void UpdateInterprocess()
     case IntProc::PlaceItem:
     {
         std::string raw = IntProc::getCMD();
-        pLogDebug(raw.c_str());
+        pLogDebug(raw);
         LevelData got;
         PGE_FileFormats_misc::RawTextInput raw_file(&raw);
         FileFormats::ReadExtendedLvlFile(raw_file, got);
 
         if(!got.meta.ReadFileValid)
         {
-            pLogDebug(got.meta.ERROR_info.c_str());
+            pLogDebug(got.meta.ERROR_info);
             break;
         }
 
@@ -2200,7 +2202,7 @@ void SetCursor()
     }
     else if(EditorCursor.Mode == OptCursor_t::LVL_NPCS) // NPCs
     {
-        int t = EditorCursor.NPC.Type;
+        NPCID t = EditorCursor.NPC.Type;
 
         // Container NPCs are handled elsewhere in new editor
         if(MagicHand)
@@ -2553,10 +2555,10 @@ void zTestLevel(bool magicHand, bool interProcess)
         for(int i = 1; i <= maxLocalPlayers; i++)
             Player[i].Location.X = -20000;
 
-        LevelBeatCode = -3;
+        LevelBeatCode = BEATCODE_SETUP;
         QuickReconnectScreen::g_active = true;
         PauseGame(PauseCode::PauseScreen);
-        LevelBeatCode = 0;
+        LevelBeatCode = BEATCODE_NONE;
     }
 
 #ifdef THEXTECH_INTERPROC_SUPPORTED
@@ -2567,11 +2569,11 @@ void zTestLevel(bool magicHand, bool interProcess)
         ElapsedTimer time;
         time.start();
         //wait for accepting of level data
-        bool timeOut = false;
+        // bool timeOut = false;
         int attempts = 0;
 
         pLogDebug("ICP: Waiting reply....");
-        IntProc::setState("Waiting for input data...");
+        IntProc::setState(g_gameStrings.ipcStatusWaitingInput);
         while(!IntProc::hasLevelData())
         {
             UpdateLoadREAL();
@@ -2591,10 +2593,13 @@ void zTestLevel(bool magicHand, bool interProcess)
             if(attempts > 4)
             {
                 pLogWarning("ICP: Wait timeout");
-                timeOut = true;
-                IntProc::setState("ERROR: Wait time out.");
+                // timeOut = true;
+                IntProc::setState(g_gameStrings.ipcStatusErrorTimeout);
+                MessageText = g_gameStrings.errorIPCTimeOut;
                 UpdateLoadREAL();
-                PGE_Delay(1000);
+                g_MessageType = MESSAGE_TYPE_SYS_WARNING;
+                PauseGame(PauseCode::Message);
+                // PGE_Delay(1000);
                 GameIsActive = false;
                 return;
             }
@@ -2604,18 +2609,19 @@ void zTestLevel(bool magicHand, bool interProcess)
 
         UpdateLoadREAL();
 
-        if(!timeOut && !OpenLevelData(IntProc::editor->m_acceptedLevel, IntProc::editor->m_accepted_lvl_path)) //-V560
+        if(!OpenLevelData(IntProc::editor->m_acceptedLevel, IntProc::editor->m_accepted_lvl_path)) //-V560
         {
             pLogWarning("Bad file format!");
             pLogDebug("ERROR: Bad data format");
             UpdateLoadREAL();
-            PGE_Delay(1000);
+            ReportLoadFailure("<Interprocess>", true);
+            // PGE_Delay(1000);
             GameIsActive = false;
             return;
         }
 
         pLogDebug("ICP: Done, starting a game....");
-        IntProc::setState("Done. Starting game...");
+        IntProc::setState(g_gameStrings.ipcStatusLoadingDone);
         UpdateLoadREAL();
 
         OpenLevelDataPost();

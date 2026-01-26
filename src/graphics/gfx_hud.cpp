@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -497,7 +497,7 @@ void DrawMedals(int X, int Y, bool warp, uint8_t max, uint8_t prev, uint8_t ckpt
     int total_len = 0;
 
     if(g_config.medals_show_policy == Config_t::MEDALS_SHOW_COUNTS)
-        label = fmt::sprintf_ne("%d/%u", got_count, max);
+        label = fmt::sprintf_ne("%d/%u", got_count, (unsigned)max);
     else
         label = fmt::sprintf_ne("%d", got_count);
 

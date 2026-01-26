@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -680,7 +680,7 @@ void RenderGL::coalesceLights()
     pdqsort(lights_begin_it, lights_end_it);
 
     if(debug_coalesce)
-        pLogDebug("Lights %d:%d", int(lights_begin_it - lights_begin_it), (lights_end_it - lights_begin_it));
+        pLogDebug("Lights %d:%d", int(lights_begin_it - lights_begin_it), int(lights_end_it - lights_begin_it));
 
     // for each light type, mark non-initial lights and try to coalesce (if box lights)
     auto type_begin_it = lights_begin_it;
@@ -689,7 +689,7 @@ void RenderGL::coalesceLights()
         auto type_end_it = std::upper_bound(type_begin_it, lights_end_it, *type_begin_it);
 
         if(debug_coalesce)
-            pLogDebug("Type %d:%d", int(type_begin_it - lights_begin_it), (type_end_it - lights_begin_it));
+            pLogDebug("Type %d:%d", int(type_begin_it - lights_begin_it), int(type_end_it - lights_begin_it));
 
         // can perform box coalescing algorithm
         if(type_begin_it->type == GLLightType::box)
@@ -714,7 +714,7 @@ void RenderGL::coalesceLights()
                 auto row_end_it = std::upper_bound(row_begin_it, type_end_it, *row_begin_it, y_compare);
 
                 if(debug_coalesce)
-                    pLogDebug("Row %d:%d", int(row_begin_it - lights_begin_it), (row_end_it - lights_begin_it));
+                    pLogDebug("Row %d:%d", int(row_begin_it - lights_begin_it), int(row_end_it - lights_begin_it));
 
                 // sort row horizontally
                 pdqsort(row_begin_it, row_end_it, x_compare);
@@ -771,7 +771,7 @@ void RenderGL::coalesceLights()
                 auto col_end_it = std::upper_bound(col_begin_it, type_end_it, *col_begin_it, x_compare);
 
                 if(debug_coalesce)
-                    pLogDebug("Col %d:%d", int(col_begin_it - lights_begin_it), (col_end_it - lights_begin_it));
+                    pLogDebug("Col %d:%d", int(col_begin_it - lights_begin_it), int(col_end_it - lights_begin_it));
 
                 // sort col vertically
                 pdqsort(col_begin_it, col_end_it, y_compare);

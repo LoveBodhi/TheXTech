@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,28 +92,35 @@ void updateScreenFaders()
         g_levelVScreenFader[s].update();
 }
 
-#if 0
-void levelWaitForFade()
+void levelWaitForFade(int waitTicks)
 {
-    while(!g_levelScreenFader.isComplete() && GameIsActive)
+    while(waitTicks >= 0 && GameIsActive)
     {
         XEvents::doEvents();
 
         if(canProceedFrame())
         {
             computeFrameTime1();
+            Controls::Update(false);
             UpdateGraphicsDraw();
             UpdateSound();
             XEvents::doEvents();
             computeFrameTime2();
             updateScreenFaders();
+            waitTicks--;
         }
 
         if(!g_config.unlimited_framerate)
             PGE_Delay(1);
     }
+
+    // Ensure everything is clear
+    if(GameIsActive)
+    {
+        XEvents::doEvents();
+        GraphicsClearScreen();
+    }
 }
-#endif
 
 void editorWaitForFade()
 {
@@ -187,6 +194,7 @@ void GameLoop()
     if(g_gameLoopInterrupt.process_intro_events)
     {
         int A;
+
         for(A = 0; A <= maxEvents; ++A)
         {
             // excluded in SMBX 1.3
@@ -196,7 +204,7 @@ void GameLoop()
             if(A == EVENT_LEVEL_START || Events[A].AutoStart)
             {
                 eventindex_t resume_index;
-                resume_index = ProcEvent_Safe(false, A, 0, true);
+                resume_index = ProcEvent_Safe(false, A, 0, EventContext::InitSetup);
                 while(resume_index != EVENT_NONE)
                 {
                     g_gameLoopInterrupt.A = A;
@@ -209,7 +217,7 @@ resume_IntroEvents:
                     resume_index = g_gameLoopInterrupt.C;
                     g_gameLoopInterrupt.site = GameLoopInterrupt::None;
 
-                    resume_index = ProcEvent_Safe(true, resume_index, 0, true);
+                    resume_index = ProcEvent_Safe(true, resume_index, 0, EventContext::InitSetup);
                 }
             }
         }
@@ -265,7 +273,7 @@ resume_IntroEvents:
     {
         EndLevel = true;
         ErrorQuit = false;
-        LevelBeatCode = -1;
+        LevelBeatCode = BEATCODE_QUIT;
         pLogWarning("Quit level because of an error");
         XRender::clearBuffer();
     }
@@ -375,7 +383,7 @@ resume_UpdateEvents:
         updateScreenFaders();
 
         // Pause game and CaptainN logic
-        if(LevelMacro == LEVELMACRO_OFF && CheckLiving() > 0)
+        if((LevelMacro == LEVELMACRO_OFF && CheckLiving() > 0) || SharedPauseForce)
         {
             // this is always able to pause the game even when CaptainN is enabled.
             if(SharedPause)
@@ -486,27 +494,32 @@ bool MessageScreen_Logic(int plr)
     bool menuDoPress = SharedPause;
     bool menuBackPress = false;
 
+    if(GameMenu)
+    {
+        bool clicked = (SharedCursor.Primary || SharedCursor.Secondary);
+        menuDoPress |= clicked;
+        MenuMouseRelease = !clicked;
+    }
+
     // there was previously code to copy all players' controls from the main player, but this is no longer necessary (and actively harmful in the SingleCoop case)
 
     if(!g_config.multiplayer_pause_controls && plr == 0)
         plr = 1;
 
-    if(plr == 0)
+    for(int i = 1; i <= numPlayers; i++)
     {
-        for(int i = 1; i <= numPlayers; i++)
-        {
-            const Controls_t& c = Player[i].Controls;
+        // in exclusive mode, skip other players
+        if(plr != 0 && i != plr)
+            continue;
 
-            menuDoPress |= (c.Start || c.Jump);
-            menuBackPress |= c.Run;
-        }
-    }
-    else
-    {
-        const Controls_t& c = Player[plr].Controls;
+        const Controls_t& c = Player[i].Controls;
 
         menuDoPress |= (c.Start || c.Jump);
         menuBackPress |= c.Run;
+
+        // NEW: allow AltJump (Do in alt menu layout) to advance messages
+        if(g_config.multiplayer_pause_controls && c.AltJump)
+            menuDoPress = true;
     }
 
     if(!MenuCursorCanMove_Back)
@@ -771,6 +784,10 @@ static void s_PauseFinish(int stack_level)
         {
             Player[i].UnStart = false;
             Player[i].CanJump = false;
+
+            // NEW: disable AltJump (used by alt menu controls and optionally used in standard menu controls)
+            if(g_config.multiplayer_pause_controls)
+                Player[i].CanAltJump = false;
         }
     }
 

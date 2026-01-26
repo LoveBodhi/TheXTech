@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,9 +28,12 @@
 #include "../sound.h"
 #include "../globals.h"
 #include "../graphics.h"
+#include "control/controls_methods.h" // to cancel keyboard's double-click fullscreen
 
 #include "../gfx.h"
 #include "../core/render.h"
+
+#include "fontman/font_manager.h"
 
 #include "graphics/gfx_frame.h"
 #include "graphics/gfx_marquee.h"
@@ -56,6 +59,13 @@ static Controls::ControlsClass s_profileTab = Controls::ControlsClass::None;
 
 static std::array<MarqueeState, maxLocalPlayers> s_controller_type_marquee;
 static std::array<MarqueeState, maxLocalPlayers> s_controller_profile_marquee;
+
+static inline void s_cancelDoubleClick()
+{
+#ifdef KEYBOARD_H
+    Controls::g_cancelDoubleClick = true;
+#endif
+}
 
 // only partially refactored from the mouse and standard menu logic functions
 //   (which currently duplicate part of their logic)
@@ -132,14 +142,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
         line = 30;
 
     // check for Chinese and Korean languages
-    int min_line_size = 18;
-
-#ifdef THEXTECH_ENABLE_TTF_SUPPORT
-    if(CurrentLanguage == "zh")
-        min_line_size = 26;
-    else if(CurrentLanguage == "ko")
-        min_line_size = 22;
-#endif
+    int min_line_size = FontManager::getMetricsValue(FontManager::Metrics_MenuMinLineHeight, CurrentLanguage); // 18;
 
     // (okay if we don't get 15 lines)
     int max_line = 15;
@@ -214,6 +217,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                 if(MenuMouseRelease && SharedCursor.Primary)
                 {
+                    s_cancelDoubleClick();
                     PlaySoundMenu(SFX_Slide);
                     s_deleteProfileSel = false;
                     MenuCursor = 1; // Delete Profile
@@ -234,6 +238,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                 if(MenuMouseRelease && SharedCursor.Primary)
                 {
+                    s_cancelDoubleClick();
                     if(profile && type->DeleteProfile(profile, Controls::g_InputMethods))
                     {
                         PlaySoundMenu(SFX_VillainKilled);
@@ -330,6 +335,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                 if(MenuMouseRelease && SharedCursor.Primary)
                 {
+                    s_cancelDoubleClick();
                     PlaySoundMenu(SFX_Do);
                     s_curType = MenuCursor;
                     MenuCursor = 0;
@@ -517,6 +523,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                         if(MenuMouseRelease && SharedCursor.Primary)
                         {
+                            s_cancelDoubleClick();
                             if(MenuCursor != n_profiles)
                             {
                                 PlaySoundMenu(SFX_Do);
@@ -576,6 +583,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                         if(MenuMouseRelease && SharedCursor.Primary)
                         {
+                            s_cancelDoubleClick();
                             if(type->OptionChange(i))
                                 PlaySoundMenu(SFX_Do);
                             else
@@ -612,6 +620,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                         if(MenuMouseRelease && SharedCursor.Primary)
                         {
+                            s_cancelDoubleClick();
                             if(type->OptionChange(i))
                                 PlaySoundMenu(SFX_Do);
                             else
@@ -783,6 +792,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                     if(MenuMouseRelease && SharedCursor.Primary)
                     {
+                        s_cancelDoubleClick();
                         MenuMouseRelease = false;
 
                         menuControls_Do();
@@ -833,6 +843,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                         if(MenuMouseRelease && SharedCursor.Primary)
                         {
+                            s_cancelDoubleClick();
                             if(type->OptionChange(i))
                                 PlaySoundMenu(SFX_Do);
                             else
@@ -870,6 +881,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                         if(MenuMouseRelease && SharedCursor.Primary)
                         {
+                            s_cancelDoubleClick();
                             if(profile->OptionChange(i))
                                 PlaySoundMenu(SFX_Do);
                             else
@@ -1085,6 +1097,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                     if(MenuMouseRelease && SharedCursor.Primary)
                     {
+                        s_cancelDoubleClick();
                         PlaySoundMenu(SFX_PSwitch);
                         g_pollingInput = true;
                         MenuCursorCanMove = false;
@@ -1104,6 +1117,7 @@ int menuControls_Mouse_Render(bool mouse, bool render)
 
                     if(MenuMouseRelease && SharedCursor.Primary)
                     {
+                        s_cancelDoubleClick();
                         PlaySoundMenu(SFX_PSwitch);
                         g_pollingInput = true;
                         MenuCursorCanMove = false;
@@ -1133,6 +1147,8 @@ int menuControls_Logic()
         Controls::PollInputMethod();
 
     const int n_types = (int)Controls::g_InputMethodTypes.size();
+
+    MenuControls_t menuControls = Controls::GetMenuControls();
 
     if(g_pollingInput)
     {
@@ -1182,12 +1198,7 @@ int menuControls_Logic()
             return 0;
         }
 
-        bool cancel = l_SharedControls.MenuBack;
-
-        for(int i = 0; i < l_screen->player_count; i++)
-            cancel |= Controls::g_RawControls[i].Run;
-
-        if(MenuCursorCanMove && cancel)
+        if(MenuCursorCanMove && menuControls.Back)
         {
             g_pollingInput = false;
             MenuCursorCanMove = false;
@@ -1199,42 +1210,15 @@ int menuControls_Logic()
         return 0;
     }
 
-    bool upPressed = l_SharedControls.MenuUp;
-    bool downPressed = l_SharedControls.MenuDown;
-    bool leftPressed = l_SharedControls.MenuLeft;
-    bool rightPressed = l_SharedControls.MenuRight;
+    menuControls.Back |= (SharedCursor.Secondary && MenuMouseRelease);
 
-    bool menuDoPress = l_SharedControls.MenuDo || l_SharedControls.Pause;
-    bool menuBackPress = l_SharedControls.MenuBack || (SharedCursor.Secondary && MenuMouseRelease);
+    if(menuControls.Back && menuControls.Do)
+        menuControls.Do = false;
 
-    bool delPressed = false;
-
-    // FIXME: Use or remove upPressed and downPressed
-    UNUSED(upPressed);
-    UNUSED(downPressed);
-
-    for(int i = 0; i < l_screen->player_count; i++)
-    {
-        Controls_t &c = Controls::g_RawControls[i];
-
-        menuDoPress |= c.Start || c.Jump;
-        menuBackPress |= c.Run;
-
-        upPressed |= c.Up;
-        downPressed |= c.Down;
-        leftPressed |= c.Left;
-        rightPressed |= c.Right;
-
-        delPressed |= c.AltJump;
-    }
-
-    if(menuBackPress && menuDoPress)
-        menuDoPress = false;
-
-    if(delPressed && s_canDelete)
+    if(menuControls.Erase && s_canDelete)
         s_canDelete = false;
-    else if(delPressed)
-        delPressed = false;
+    else if(menuControls.Erase)
+        menuControls.Erase = false;
     else
         s_canDelete = true;
 
@@ -1266,14 +1250,14 @@ int menuControls_Logic()
 
         Controls::InputMethodProfile* profile = type->GetProfiles()[s_curProfile];
 
-        if(menuBackPress || (menuDoPress && MenuCursor == 0))
+        if(menuControls.Back || (menuControls.Do && MenuCursor == 0))
         {
             PlaySoundMenu(SFX_Slide);
             s_deleteProfileSel = false;
             MenuCursor = 1; // Delete Profile
             MenuCursorCanMove = false;
         }
-        else if(menuDoPress && MenuCursor == 1)
+        else if(menuControls.Do && MenuCursor == 1)
         {
             if(type->DeleteProfile(profile, Controls::g_InputMethods))
             {
@@ -1302,13 +1286,13 @@ int menuControls_Logic()
             return 0;
 
         // back and forward nav
-        if(menuBackPress)
+        if(menuControls.Back)
         {
             PlaySoundMenu(SFX_Slide);
             MenuCursorCanMove = false;
             return -1;
         }
-        if(menuDoPress && MenuCursor >= 0 && MenuCursor < n_types)
+        if(menuControls.Do && MenuCursor >= 0 && MenuCursor < n_types)
         {
             s_curType = MenuCursor;
             MenuCursor = 0;
@@ -1343,7 +1327,7 @@ int menuControls_Logic()
             return 0;
 
         // backward navigation
-        if(menuBackPress)
+        if(menuControls.Back)
         {
             PlaySoundMenu(SFX_Slide);
             MenuCursor = s_curType;
@@ -1355,7 +1339,7 @@ int menuControls_Logic()
         // first come the profiles, then the type options.
 
         // forward navigation
-        if(menuDoPress && MenuCursor >= 0 && MenuCursor < n_profiles)
+        if(menuControls.Do && MenuCursor >= 0 && MenuCursor < n_profiles)
         {
             PlaySoundMenu(SFX_Do);
             s_curProfile = MenuCursor;
@@ -1367,7 +1351,7 @@ int menuControls_Logic()
         }
 
         // creation
-        if(menuDoPress && MenuCursor == n_profiles)
+        if(menuControls.Do && MenuCursor == n_profiles)
         {
             PlaySoundMenu(SFX_DropItem);
             type->AddProfile();
@@ -1378,7 +1362,7 @@ int menuControls_Logic()
         // options logic
         if(MenuCursor >= n_profiles + 1 && MenuCursor < n_profiles + 1 + n_options)
         {
-            if(menuDoPress)
+            if(menuControls.Do)
             {
                 if(type->OptionChange(MenuCursor - n_profiles - 1))
                     PlaySoundMenu(SFX_Slide);
@@ -1387,7 +1371,7 @@ int menuControls_Logic()
 
                 MenuCursorCanMove = false;
             }
-            else if(leftPressed)
+            else if(menuControls.Left)
             {
                 if(type->OptionRotateLeft(MenuCursor - n_profiles - 1))
                     PlaySoundMenu(SFX_Slide);
@@ -1396,7 +1380,7 @@ int menuControls_Logic()
 
                 MenuCursorCanMove = false;
             }
-            else if(rightPressed)
+            else if(menuControls.Right)
             {
                 if(type->OptionRotateRight(MenuCursor - n_profiles - 1))
                     PlaySoundMenu(SFX_Slide);
@@ -1448,7 +1432,7 @@ int menuControls_Logic()
             return 0;
 
         // backward navigation
-        if(menuBackPress)
+        if(menuControls.Back)
         {
             PlaySoundMenu(SFX_Slide);
             MenuCursor = s_curProfile;
@@ -1458,7 +1442,7 @@ int menuControls_Logic()
         }
 
         // stock options
-        if(MenuCursor >= 0 && MenuCursor < n_stock && menuDoPress)
+        if(MenuCursor >= 0 && MenuCursor < n_stock && menuControls.Do)
         {
             return menuControls_Do();
         }
@@ -1466,7 +1450,7 @@ int menuControls_Logic()
         // options logic
         if(MenuCursor >= n_stock && MenuCursor < n_stock + n_options)
         {
-            if(menuDoPress)
+            if(menuControls.Do)
             {
                 if(profile->OptionChange(MenuCursor - n_stock))
                     PlaySoundMenu(SFX_Slide);
@@ -1475,7 +1459,7 @@ int menuControls_Logic()
 
                 MenuCursorCanMove = false;
             }
-            else if(leftPressed)
+            else if(menuControls.Left)
             {
                 if(profile->OptionRotateLeft(MenuCursor - n_stock))
                     PlaySoundMenu(SFX_Slide);
@@ -1484,7 +1468,7 @@ int menuControls_Logic()
 
                 MenuCursorCanMove = false;
             }
-            else if(rightPressed)
+            else if(menuControls.Right)
             {
                 if(profile->OptionRotateRight(MenuCursor - n_stock))
                     PlaySoundMenu(SFX_Slide);
@@ -1552,7 +1536,7 @@ int menuControls_Logic()
             return 0;
 
         // backward navigation
-        if(menuBackPress)
+        if(menuControls.Back)
         {
             PlaySoundMenu(SFX_Slide);
 
@@ -1575,20 +1559,20 @@ int menuControls_Logic()
         // key logic
         if(MenuCursor >= 0 && MenuCursor < n_buttons)
         {
-            if(menuDoPress)
+            if(menuControls.Do)
             {
                 PlaySoundMenu(SFX_PSwitch);
                 g_pollingInput = true;
                 MenuCursorCanMove = false;
                 return 0;
             }
-            else if(leftPressed || rightPressed)
+            else if(menuControls.Left || menuControls.Right)
             {
                 PlaySoundMenu(SFX_Slide);
                 s_secondaryInput = !s_secondaryInput;
                 MenuCursorCanMove = false;
             }
-            else if(delPressed && s_secondaryInput)
+            else if(menuControls.Erase && s_secondaryInput)
             {
                 if(profile->DeleteSecondaryButton(s_profileTab, MenuCursor))
                     PlaySoundMenu(SFX_PlayerDied2);
@@ -1597,7 +1581,7 @@ int menuControls_Logic()
 
                 MenuCursorCanMove = false;
             }
-            else if(delPressed)
+            else if(menuControls.Erase)
             {
                 if(profile->DeletePrimaryButton(s_profileTab, MenuCursor))
                     PlaySoundMenu(SFX_PlayerDied2);

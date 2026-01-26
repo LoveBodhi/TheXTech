@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,6 +576,8 @@ void InputMethodProfile_Wii::InitAs(uint8_t expansion)
         this->m_cursor_keys2[CursorControls::Buttons::CursorRight] = WPAD_STICK_RR;
         this->m_cursor_keys2[CursorControls::Buttons::Primary] = WPAD_CLASSIC_BUTTON_FULL_R;
         this->m_cursor_keys2[CursorControls::Buttons::Secondary] = WPAD_CLASSIC_BUTTON_FULL_L;
+
+        this->m_altMenuControls = true;
     }
     else
     {
@@ -1510,6 +1512,26 @@ bool InputMethodType_Wii::SetProfile_Custom(InputMethod* method, int player_no, 
     this->m_lastProfileByPlayerAndExp[p->m_expansion * 256] = profile;
 
     m_canPoll = false;
+    return true;
+}
+
+// unregisters any references to the profile before final deallocation
+// returns false to prevent deletion if this is impossible
+bool InputMethodType_Wii::DeleteProfile_Custom(InputMethodProfile* profile, const std::vector<InputMethod*>& active_methods)
+{
+    UNUSED(active_methods);
+
+    for(auto it = m_lastProfileByPlayerAndExp.begin(); it != m_lastProfileByPlayerAndExp.end();)
+    {
+        if(it->second == profile)
+        {
+            pLogDebug("Unsetting default profile for index '%x' on deletion of '%s'.", (unsigned int)it->first, profile->Name.c_str());
+            it = m_lastProfileByPlayerAndExp.erase(it);
+        }
+        else
+            ++it;
+    }
+
     return true;
 }
 

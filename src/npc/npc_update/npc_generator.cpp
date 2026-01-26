@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@ bool NPCGeneratorLogic(int A)
 #endif
 
     // increase activation timer if not ready yet
-    if(NPC[A].GeneratorTime() * 10 < NPC[A].GeneratorTimeMax() * 65)
+    // (Note: the + 1 tests whether the NPC would have exceeded the limit *after* adding 1, matching the original logic. It's immaterial whether the final += 1 ever occurs.)
+    if((NPC[A].GeneratorTime() + 1) * 10 < NPC[A].GeneratorTimeMax() * 65)
         NPC[A].GeneratorTime() += 1;
     // if ready and onscreen, try to activate!
     else if(NPC[A].GeneratorActive)

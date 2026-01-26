@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,6 +99,12 @@ bool NPC_InactiveIgnore(const NPC_t& n)
 
 bool NPC_InactiveRender(const NPC_t& n)
 {
+    if(n->InactiveRender == NPCTraits_t::SMOKE)
+        return false;
+
+    if(n.DefaultType == 0)
+        return false;
+
     return n.Inert
         || n.Stuck
         || n->InactiveRender == NPCTraits_t::SHOW_ALWAYS

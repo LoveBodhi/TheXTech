@@ -334,7 +334,11 @@
             "errorInvalidEnterWarp": "作爲關卡起點的傳送點{1}號不存在，因此無法進入關卡。\n傳送點總數：{2}\n\n檔案：{0}",
             "errorNoStartPoint": "未放置玩家起點或傳送點入口，因此無法進入關卡。\n\n檔案：{0}",
             "openFileFailed": "無法打開檔案\"{0}\"：檔案不存在或已損壞。",
-            "warpNeedStarCount": "你需要{0}{2}{1}才能進入此傳送點。"
+            "warpNeedStarCount": "你需要{0}{2}{1}才能進入此傳送點。",
+            "openIPCDataFailed": "無法接收檔案數據：檔案可能已損壞，或者發生其他錯誤。",
+            "IPCTimeOut": "載入編輯器時無響應，即將退出遊戲。",
+            "errorTooOldEngine": "該檔案需要版本{0}或更高版本的TheXTech引擎才能正常運作，當前TheXTech引擎版本為{1}。請更新引擎。",
+            "errorTooOldGameAssets": "該檔案需要版本{0}或更高版本的遊戲組件才能正常運作，當前遊戲組件版本為{1}。請更新遊戲組件。"
         },
         "pause": {
             "continue": "繼續遊戲",
@@ -369,6 +373,24 @@
             "heavy-duck": "玩家下蹲時，可以抵擋大多數火焰！",
             "pound-altrun": "按下“第二奔跑”鍵，進行震地！",
             "pound-down": "按下“下”鍵，進行震地！"
+        },
+        "screenPaused": "遊戲暫停",
+        "ipcStatus": {
+            "waitingInput": "等待玩家按鍵輸入……",
+            "loadingdone": "載入完成，即將開始遊戲……",
+            "errorTimeout": "錯誤：等待超時。",
+            "dataValid": "接收的數據是有效數據",
+            "dataTransferStarted": "開始傳輸數據……",
+            "dataAccepted": "已接收到數據，開始解析……"
+        },
+        "loader": {
+            "statusAssetPacks": "遊戲組件",
+            "statusFinishing": "完成加載……",
+            "statusGameInfo": "遊戲信息",
+            "statusLoadData": "正在加載數據……",
+            "statusLoadFile": "正在加載：{0}",
+            "statusTranslations": "翻譯",
+            "loading": "加載中……"
         }
     },
     "languageName": "繁體中文",
@@ -399,6 +421,7 @@
             "caseTouch": "（觸屏）",
             "controlsConnected": "已連接：",
             "controlsDeleteKey": "（按第二跳躍鍵清除）",
+            "controlsDeleteKey2": "（按第二奔跑鍵清除）",
             "controlsDeviceTypes": "設備類型",
             "controlsInUse": "（已使用）",
             "controlsNewProfile": "<新建配置>",
@@ -441,7 +464,8 @@
                 "batteryStatus": "電池狀態",
                 "maxPlayers": "玩家上限",
                 "rumble": "Rumble控制器",
-                "textEntryStyle": "文字輸入使用設備"
+                "textEntryStyle": "文字輸入使用設備",
+                "altMenuControls": "切換確定/返回按鍵"
             },
             "phraseNewProfOldJoy": "新建老式手柄配置",
             "profile": {
@@ -652,13 +676,20 @@
                 "inaccurate-gifs": "錯誤GIF圖片渲染",
                 "inaccurate-gifs-tip": "當GIF圖片檔案存在時，啟用3D效果",
                 "fullscreen-type": {
-                    "real": "物理",
-                    "real-tip": "以物理顯示器的分辨率顯示",
                     "_name": "全屏模式顯示類型",
                     "auto": "自動選擇",
                     "desktop": "電腦",
-                    "desktop-tip": "以當前分辨率顯示"
-                }
+                    "desktop-tip": "以當前分辨率顯示",
+                    "exclusive-tip": "設置實際畫面大小",
+                    "exclusive": "獨立設置"
+                },
+                "fullscreen-depth": {
+                    "32": "32位",
+                    "_name": "位深",
+                    "16": "16位",
+                    "auto": "自動"
+                },
+                "fullscreen-res": "分辨率"
             },
             "audio": {
                 "audio-sfx-volume": "聲音音量",
@@ -796,7 +827,8 @@
                     "linear": "雙綫性",
                     "nearest": "最近鄰居",
                     "full": "完全縮放",
-                    "center": "中心"
+                    "center": "中心",
+                    "3x": "3倍"
                 }
             },
             "view-credits": {

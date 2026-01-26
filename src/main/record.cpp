@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -338,7 +338,7 @@ static void read_header()
 
 static void write_end()
 {
-    fprintf(record_file, " %" PRId64 " \r\nEnd\r\nLevelBeatCode %d\r\n", frame_no+1, LevelBeatCode);
+    fprintf(record_file, " %" PRId64 " \r\nEnd\r\nLevelBeatCode %d\r\n", frame_no+1, (int)LevelBeatCode);
 }
 
 static void read_end()
@@ -545,7 +545,7 @@ static void read_status()
 
     if(o_randCalls != random_ncalls())
     {
-        pLogWarning("randCalls diverged (old: %d, new: %ld) at frame %" PRId64 ".", o_randCalls, random_ncalls(), frame_no);
+        pLogWarning("randCalls diverged (old: %ld, new: %ld) at frame %" PRId64 ".", o_randCalls, random_ncalls(), frame_no);
         diverged_minor = true;
 #ifdef DEBUG_RANDOM_CALLS
         for(int i = 0; i < g_random_calls.size(); i++)

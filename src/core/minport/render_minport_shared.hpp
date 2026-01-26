@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the "Software"),
@@ -186,18 +186,13 @@ void getRenderSize(int* w, int* h)
 
 static inline int FLOORDIV2(int x)
 {
-    return (x < 0) ? (x - 1) / 2 : x / 2;
+    static_assert(((-1) >> 1) == -1 && (1 >> 1) == 0 && (2 >> 1) == 1 && (-2 >> 1) == -1, "Signed right shift must have floor semantics");
+    return (x >> 1);
 }
 
-static inline float FLOORDIV2(float x)
-{
-    return std::floor((x + 0.5f) / 2.0f);
-}
+static inline float FLOORDIV2(float x) = delete;
 
-static inline double FLOORDIV2(double x)
-{
-    return std::floor((x + 0.5) / 2.0);
-}
+static inline double FLOORDIV2(double x) = delete;
 
 #ifndef __WII__
 static void minport_RenderBoxUnfilled(int x1, int y1, int x2, int y2, XTColor color)
@@ -382,7 +377,7 @@ void unloadGifTextures()
 
         if(!last_p->l.mask_path.empty())
         {
-            D_pLogDebug("XRender: unloading texture at %p on unloadGifTextures()", last_p);
+            D_pLogDebug("XRender: unloading texture at %p on unloadGifTextures()", static_cast<void*>(last_p));
             unloadTexture(*last_p);
         }
     }

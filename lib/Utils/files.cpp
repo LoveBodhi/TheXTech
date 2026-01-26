@@ -2,7 +2,7 @@
  * A small crossplatform set of file manipulation functions.
  * All input/output strings are UTF-8 encoded, even on Windows!
  *
- * Copyright (c) 2017-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2017-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this
  * software and associated documentation files (the "Software"), to deal in the Software
@@ -144,6 +144,7 @@ void Files::Data::init_from_mem(const unsigned char* data, size_t size)
     m_length = static_cast<long long int>(size);
 }
 
+#ifdef FILES_DISOWN_NEEDED
 void* Files::Data::disown()
 {
     if(!m_free_me)
@@ -157,6 +158,7 @@ void* Files::Data::disown()
 
     return ret;
 }
+#endif
 
 FILE *Files::utf8_fopen(const char *filePath, const char *modes)
 {

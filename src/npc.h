@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,6 +87,9 @@ bool npcHasFloor(const struct NPC_t &npc);
 // totally new function, used in editor and medals-tracking logic
 bool NPCIsContainer(const NPC_t& npc);
 bool NPCNewContainerType(int Type);
+
+// NEW: release an NPC from burial -- only made because the call was duplicated in 3 places. If callsite is 0, the logic should be "correct".
+void NPCUnbury(int A, int Callsite);
 
 // totally new function, used in editor and level-loading
 bool NPCBansWings(const NPC_t& npc);

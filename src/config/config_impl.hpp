@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -319,7 +319,7 @@ void ConfigOption_t<true, std::pair<int, int>>::save_to_ini(IniProcessing* ini)
 template<>
 const std::string& ConfigOption_t<true, std::array<uint8_t, 3>>::get_display_value(std::string& out) const
 {
-    out = fmt::sprintf_ne("%u,%u,%u", m_value[0], m_value[1], m_value[2]);
+    out = fmt::sprintf_ne("%u,%u,%u", (unsigned)m_value[0], (unsigned)m_value[1], (unsigned)m_value[2]);
     return out;
 }
 
@@ -392,11 +392,11 @@ void ConfigEnumOption_t<false, value_t>::make_translation(XTechTranslate& transl
     if((ConfigOption_t<false, value_t>::m_scope & Options_t::Scope::MakeTranslation) == 0)
         return;
 
-    translate.m_engineMap.insert({fmt::sprintf_ne("menu.options.%s.%s._name", cur_section_id, m_internal_name), &m_display_name});
+    XTechTranslate::insert(translate.m_engineMap, fmt::sprintf_ne("menu.options.%s.%s._name", cur_section_id, m_internal_name), &m_display_name);
 
     // some obscure behavior of the GCC version in Ubuntu 16.04 necessitates qualifying m_display_tooltip with the base class scope
     if(!BaseConfigOption_t<false>::m_display_tooltip.empty())
-        translate.m_engineMap.insert({fmt::sprintf_ne("menu.options.%s.%s._tooltip", cur_section_id, m_internal_name), &m_display_tooltip});
+        XTechTranslate::insert(translate.m_engineMap, fmt::sprintf_ne("menu.options.%s.%s._tooltip", cur_section_id, m_internal_name), &m_display_tooltip);
 
     for(auto& value : m_enum_values)
     {
@@ -404,10 +404,10 @@ void ConfigEnumOption_t<false, value_t>::make_translation(XTechTranslate& transl
             continue;
 
         if(!value.m_display_name.empty())
-            translate.m_engineMap.insert({fmt::sprintf_ne("menu.options.%s.%s.%s", cur_section_id, m_internal_name, value.m_internal_name), &value.m_display_name});
+            XTechTranslate::insert(translate.m_engineMap, fmt::sprintf_ne("menu.options.%s.%s.%s", cur_section_id, m_internal_name, value.m_internal_name), &value.m_display_name);
 
         if(!value.m_display_tooltip.empty())
-            translate.m_engineMap.insert({fmt::sprintf_ne("menu.options.%s.%s.%s-tip", cur_section_id, m_internal_name, value.m_internal_name), &value.m_display_tooltip});
+            XTechTranslate::insert(translate.m_engineMap, fmt::sprintf_ne("menu.options.%s.%s.%s-tip", cur_section_id, m_internal_name, value.m_internal_name), &value.m_display_tooltip);
     }
 }
 
@@ -804,39 +804,32 @@ const std::string& ConfigSetupEnum_t<true>::get_display_value(std::string& out) 
 {
     ConfigEnumOption_t<true, int>::get_display_value(out);
 
-    if(m_value != obtained)
-    {
 #ifndef RENDER_CUSTOM
-        const ConfigEnumOption_t<false, int>* base = dynamic_cast<const ConfigEnumOption_t<false, int>*>(m_base);
+    const ConfigEnumOption_t<false, int>* base = dynamic_cast<const ConfigEnumOption_t<false, int>*>(m_base);
 
-        // special case for "auto" render mode
-        if(base && base == &g_options.render_mode && m_value == Config_t::RENDER_ACCELERATED_AUTO)
+    // special case for "auto" values (always 0)
+    if(base && m_value == 0 && obtained > 0)
+    {
+        out += " (";
+
+        for(const ConfigEnumValueInfo_t<int>& val : base->m_enum_values)
         {
-            out += " (";
-
-            for(const ConfigEnumValueInfo_t<int>& val : base->m_enum_values)
+            if(obtained == val.m_value)
             {
-                if(obtained == val.m_value)
-                {
-                    if(!val.m_display_name.empty())
-                        out += val.m_display_name;
-                    else if(val.m_internal_name)
-                        out += val.m_internal_name;
-                    else
-                        continue;
+                if(!val.m_display_name.empty())
+                    out += val.m_display_name;
+                else if(val.m_internal_name)
+                    out += val.m_internal_name;
+                else
+                    continue;
 
-                    break;
-                }
+                break;
             }
+        }
 
-            out += ")";
-        }
-        else
-#endif
-        {
-            out += " (X)";
-        }
+        out += ")";
     }
+#endif
 
     return out;
 }

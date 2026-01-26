@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,12 +44,37 @@ class ConfigEnumOption_t;
 
 class XTechTranslate
 {
+#ifdef THEXTECH_DISABLE_LANG_TOOLS
+    typedef std::pair<std::string, std::string*> TrEntry;
+    typedef std::vector<TrEntry> TrList;
+#   define TR_MAP_TYPE 1
+#   define TR_MAP_INSERT push_back
+#else
     typedef std::map<std::string, std::string*> TrList;
+#   define TR_MAP_TYPE 0
+#   define TR_MAP_INSERT insert
+#endif
     //! Map of the engine specific translation key and the actual string container, used to simplify the maintenance
     TrList m_engineMap;
 
     //! Map of the assets specific translation key and the actual string container, used to simplify the maintenance
     TrList m_assetsMap;
+
+    /**
+     * @brief Inserts a new translation line
+     * @param list Translation list to insert
+     * @param key Key of the translation line
+     * @param value Pointer to the contained string that should be translated
+     */
+    static void insert(TrList &list, const char *key, std::string *value);
+
+    /**
+     * @brief Inserts a new translation line
+     * @param list Translation list to insert
+     * @param key Key of the translation line
+     * @param value Pointer to the contained string that should be translated
+     */
+    static void insert(TrList &list, std::string &&key, std::string *value);
 
 public:
     XTechTranslate();

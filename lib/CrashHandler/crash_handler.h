@@ -1,6 +1,6 @@
 /*
  * Moondust, a free game engine for platform game making
- * Copyright (c) 2014-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2014-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This software is licensed under a dual license system (MIT or GPL version 3 or later).
  * This means you are free to choose with which of both licenses (MIT or GPL version 3 or later)
@@ -34,6 +34,7 @@ public:
 #ifndef THEXTECH_NO_SDL_BUILD
     static void logAssertInfo(const void *data);
 #endif
+    static void logAssertInfo(const char *condition, const char *file, const char *func, int line_number);
 };
 
 #endif // CRASHHANDLER_H

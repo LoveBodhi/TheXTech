@@ -2,7 +2,7 @@
  * TheXTech - A platform game engine ported from old source code for VB6
  *
  * Copyright (c) 2009-2011 Andrew Spinks, original VB6 code
- * Copyright (c) 2020-2025 Vitaly Novichkov <admin@wohlnet.ru>
+ * Copyright (c) 2020-2026 Vitaly Novichkov <admin@wohlnet.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -303,6 +303,12 @@ void SetupVars()
 
     // NEW: reset all variables to their original values (it will be nice to convert all NPC traits to a single struct)
     NPCTraits.fill(NPCTraits_t());
+
+    // clear fields that were incorrectly initialized for NPCTraits[0] between v1.3.7 and v1.3.7.3 (caused a bug where popping an empty bubble could harm the player)
+    NPCTraits[NPCID_NULL].Speedvar = 0;
+    NPCTraits[NPCID_NULL].TWidth = 0;
+    NPCTraits[NPCID_NULL].THeight = 0;
+    NPCTraits[NPCID_NULL].Score = 0;
 
     // SMBX64 logic:
     // now included as part of default NPCTraits_t initializer
@@ -802,10 +808,10 @@ void SetupVars()
     NPCTraits[NPCID_HPIPE_LONG].THeight = 32;
     NPCTraits[NPCID_HPIPE_LONG].NoYoshi = true;
     NPCTraits[NPCID_VPIPE_SHORT].TWidth = 32; // grey pipe y
-    NPCTraits[NPCID_VPIPE_SHORT].THeight = 127; // FIXME: was set to 127.9 in VB6, which has round semantics for implicit casts
+    NPCTraits[NPCID_VPIPE_SHORT].THeight = 128; // NOTE: was set to 127 until v1.3.7.2, due to different semantics for the implicit cast of 127.9 to int between VB6 and C++
     NPCTraits[NPCID_VPIPE_SHORT].NoYoshi = true;
     NPCTraits[NPCID_VPIPE_LONG].TWidth = 32; // big grey pipe y
-    NPCTraits[NPCID_VPIPE_LONG].THeight = 255; // FIXME: was set to 255.9 in VB6
+    NPCTraits[NPCID_VPIPE_LONG].THeight = 256; // NOTE: was set to 255 until v1.3.7.2, due to different semantics for the implicit cast of 127.9 to int between VB6 and C++
     NPCTraits[NPCID_VPIPE_LONG].NoYoshi = true;
     NPCTraits[NPCID_BIG_FODDER].TWidth = 48; // giant goomba
     NPCTraits[NPCID_BIG_FODDER].THeight = 46;
