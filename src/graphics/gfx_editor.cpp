@@ -238,7 +238,7 @@ void s_drawPlayer(int Z, int A, num_t sceneX, num_t sceneY)
 void DrawEditorLevel(int Z)
 {
     int A = 0;
-    int B = 0;
+    // int B = 0;
     int S = curSection; // Level section to display
 
     // camera offsets to add to all object positions before drawing
@@ -288,19 +288,33 @@ void DrawEditorLevel(int Z)
                 bool complete = Warp[A].PlacedEnt && Warp[A].PlacedExit;
                 XTColor color = complete ? XTColorF(1.0_n, 0.0_n, 1.0_n) : XTColorF(0.7_n, 0.3_n, 0.0_n);
 
-                if(Warp[A].PlacedEnt)
-                {
-                    XRender::renderRect(num_t::floor(camX + Warp[A].Entrance.X), num_t::floor(camY + Warp[A].Entrance.Y), 32, 32,
-                        color, false);
-                    SuperPrint(std::to_string(A), 1, num_t::floor(camX + Warp[A].Entrance.X) + 2, num_t::floor(camY + Warp[A].Entrance.Y) + 2);
-                }
+                const SpeedlessLocation_t* const locs[2] = {&Warp[A].Entrance, &Warp[A].Exit};
+                const bool enabled[2] = {Warp[A].PlacedEnt, Warp[A].PlacedExit};
+                const int direction[2] = {Warp[A].Direction, Warp[A].Direction2};
 
-                if(Warp[A].PlacedExit)
+                for(int i = 0; i < 2; i++)
                 {
-                    XRender::renderRect(num_t::floor(camX + Warp[A].Exit.X), num_t::floor(camY + Warp[A].Exit.Y), 32, 32,
-                        color, false);
-                    SuperPrint(std::to_string(A), 1, num_t::floor(camX + Warp[A].Exit.X + Warp[A].Exit.Width) - 16 - 2,
-                        num_t::floor(camY + Warp[A].Exit.Y + Warp[A].Exit.Height) - 14 - 2);
+                    if(!enabled[i])
+                        continue;
+
+                    int l = num_t::floor(camX + locs[i]->X);
+                    int t = num_t::floor(camY + locs[i]->Y);
+                    int w = num_t::floor(locs[i]->Width);
+                    int h = num_t::floor(locs[i]->Height);
+
+                    XRender::renderRect(l, t, w, h, color, false);
+
+                    if(Warp[A].Effect == 1 || Warp[A].Effect == 2)
+                    {
+                        if(direction[i] == 1 || direction[i] == 3)
+                            XRender::renderRect(l + 2, t + 2 + (h - 6) * (direction[i] == 3), w - 4, 2, XTColor(0, 255, 0), true);
+
+                        if(direction[i] == 2 || direction[i] == 4)
+                            XRender::renderRect(l + 2 + (w - 6) * (direction[i] == 4), t + 2, 2, h - 4, XTColor(0, 255, 0), true);
+                    }
+
+                    SuperPrint(std::to_string(A), 1, l + 2 + (w - 16 - 4) * i,
+                        t + 2 + (h - 14 - 4) * i);
                 }
             }
         }
@@ -431,51 +445,7 @@ void DrawEditorLevel(int Z)
             e.NPC = NPC[0];
             auto &n = e.NPC;
 
-            int sX = num_t::floor(camX + n.Location.X);
-            int sY = num_t::floor(camY + n.Location.Y);
-
-            if(n->WidthGFX == 0)
-            {
-                XRender::renderTextureBasic(sX + n->FrameOffsetX,
-                                      sY + n->FrameOffsetY,
-                                      (int)n.Location.Width,
-                                      (int)n.Location.Height,
-                                      GFXNPC[n.Type], 0, n.Frame * (int)n.Location.Height);
-            }
-            else
-            {
-                if(n.Type == NPCID_ITEM_BUBBLE && n.Special > 0)
-                {
-                    int dW, dH;
-                    if(NPCWidthGFX(n.Special) == 0)
-                    {
-                        dW = NPCWidth(n.Special);
-                        dH = NPCHeight(n.Special);
-                    }
-                    else
-                    {
-                        dW = NPCWidthGFX(n.Special);
-                        dH = NPCHeightGFX(n.Special);
-                    }
-
-                    int cont_sX = num_t::floor(camX + n.Location.X + n.Location.Width / 2) - dW / 2;
-                    int cont_sY = num_t::floor(camY + n.Location.Y + n.Location.Height / 2) - dH / 2;
-                    B = EditorNPCFrame(NPCID(n.Special), n.Direction);
-
-                    XRender::renderTextureBasic(cont_sX + n->FrameOffsetX,
-                                          cont_sY,
-                                          dW, dH,
-                                          GFXNPC[n.Special], 0, B * dH);
-                }
-
-                XRender::renderTextureBasic(num_t::floor(camX + n.Location.X + n.Location.Width / 2) + n->FrameOffsetX - n->WidthGFX / 2,
-                                      num_t::floor(camY + n.Location.Y + n.Location.Height) + n->FrameOffsetY - n->HeightGFX,
-                                      n->WidthGFX, n->HeightGFX, GFXNPC[n.Type],
-                                      0, n.Frame * n->HeightGFX);
-            }
-
-            if(e.NPC.Wings)
-                DrawNPCWings(e.NPC, sX, sY, XTColor());
+            DrawNPC(camX, camY, 0);
 
             s_drawNpcExtra(Z, camX, camY, n);
         }

@@ -83,6 +83,9 @@ void DropBonus(int A)
         return;
     }
 
+    if(g_config.alt_powerdown)
+        return;
+
     // drop the bonus!
     PlaySoundSpatial(SFX_DropItem, plr.Location);
     numNPCs++;
@@ -307,6 +310,19 @@ void TouchBonus(int A, int B)
             std::swap(p_touched.Direction, p_target.Direction);
             std::swap(p_touched.Slope, p_target.Slope);
             std::swap(p_touched.StandingOnNPC, p_target.StandingOnNPC);
+
+            // FIXME: verify whether warps should also be swapped...
+
+            // BUGFIX: swap sections; fixes vanilla bug where both players could be killed / trapped
+            if(g_config.fix_multiplayer_targeting)
+            {
+                CheckSection(touched_power_i);
+                CheckSection(target_i);
+            }
+
+            // NEW: swap status for maze zones
+            std::swap(p_touched.CurMazeZone, p_target.CurMazeZone);
+            std::swap(p_touched.MazeZoneStatus, p_target.MazeZoneStatus);
 
             // make players immune
             if(p_touched.Immune < 10)

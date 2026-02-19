@@ -555,7 +555,14 @@ void UpdateEditor()
 #endif // THEXTECH_INTERPROC_SUPPORTED
                 }
 
-                if(EditorCursor.InteractMode == OptCursor_t::LVL_WARPS) // Warps
+                if(EditorCursor.InteractMode == OptCursor_t::LVL_WARPS && EditorCursor.InteractFlags > 1) // resizing warps
+                {
+                    MouseRelease = false;
+
+                    SpeedlessLocation_t& iLoc = (EditorCursor.InteractFlags & IF_AltMode) ? Warp[EditorCursor.InteractIndex].Exit : Warp[EditorCursor.InteractIndex].Entrance;
+                    InteractResize(iLoc, 32, 32);
+                }
+                else if(EditorCursor.InteractMode == OptCursor_t::LVL_WARPS) // Warps
                 {
                     int A = EditorCursor.InteractIndex;
                     PlaySound(SFX_Grab);
@@ -567,15 +574,18 @@ void UpdateEditor()
                     {
                         Warp[A].PlacedEnt = false;
                         EditorCursor.SubMode = 1;
+                        EditorCursor.Location.Width = Warp[A].Entrance.Width;
+                        EditorCursor.Location.Height = Warp[A].Entrance.Height;
 
                         if(Warp[A].LevelEnt || EditorCursor.Warp.MapWarp || EditorCursor.Warp.level != STRINGINDEX_NONE)
                             Warp[A].PlacedExit = false;
-
                     }
                     else
                     {
                         Warp[A].PlacedExit = false;
                         EditorCursor.SubMode = 2;
+                        EditorCursor.Location.Width = Warp[A].Exit.Width;
+                        EditorCursor.Location.Height = Warp[A].Exit.Height;
 
                         // TODO: additional testing of these situations
                         if(Warp[A].LevelEnt || EditorCursor.Warp.MapWarp || EditorCursor.Warp.level != STRINGINDEX_NONE)
@@ -2118,6 +2128,10 @@ void SetCursor()
     {
 //        EditorCursor.Location.Height = frmWater::WaterH * 32;
 //        EditorCursor.Location.Width = frmWater::WaterW * 32;
+        if(EditorCursor.Water.Location.Width < 32)
+            EditorCursor.Water.Location.Width = 32;
+        if(EditorCursor.Water.Location.Height < 32)
+            EditorCursor.Water.Location.Height = 32;
         EditorCursor.Location.Height = EditorCursor.Water.Location.Height;
         EditorCursor.Location.Width = EditorCursor.Water.Location.Width;
         EditorCursor.Water.Location.X = EditorCursor.Location.X;
@@ -2246,8 +2260,10 @@ void SetCursor()
     else if(EditorCursor.Mode == OptCursor_t::LVL_WARPS) // Warps
     {
         EditorCursor.Warp.Layer = EditorCursor.Layer;
-        EditorCursor.Location.Width = 32;
-        EditorCursor.Location.Height = 32;
+        if(EditorCursor.Location.Width < 32)
+            EditorCursor.Location.Width = 32;
+        if(EditorCursor.Location.Height < 32)
+            EditorCursor.Location.Height = 32;
         // EditorCursor.Warp is now the canonical Warp object.
         // It stores the warp's entrance and exit until the warp is placed,
         // instead of finding and modifying an existing warp.
@@ -2517,8 +2533,6 @@ void zTestLevel(bool magicHand, bool interProcess)
     LevelEditor = false;
     TestLevel = true;
 
-    UpdateInternalRes();
-
     // assign players to screens
     InitScreens();
     for(A = 1; A <= numPlayers; A++)
@@ -2527,6 +2541,9 @@ void zTestLevel(bool magicHand, bool interProcess)
         if(g_ClonedPlayerMode)
             break;
     }
+
+    UpdateInternalRes();
+    XMessage::PushMessage({XMessage::Type::multiplayer_prefs, (uint8_t)g_config.two_screen_mode.m_value, (uint8_t)g_config.four_screen_mode.m_value});
 
     SetupPlayers();
     MagicHand = magicHand;
@@ -2788,22 +2805,27 @@ void UpdateInteract()
             }
         }
 
-        // warps (same condition for now, until warps become sizable)
-        if(!MagicHand && EditorCursor.InteractMode == 0 && (!need_class || need_class == OptCursor_t::LVL_WARPS))
+        // warps (now sizable)
+        if(!MagicHand && ((select_mode && EditorCursor.InteractFlags < 2) || EditorCursor.InteractMode == 0) && (!need_class || need_class == OptCursor_t::LVL_WARPS))
         {
             for(int A = 1; A <= numWarps; A++)
             {
-                if(CursorCollision(EditorCursor.Location, Warp[A].Entrance) && !Warp[A].Hidden)
+                if(Warp[A].Hidden)
+                    continue;
+
+                int entr_flags = (select_mode) ? s_find_flags(Warp[A].Entrance) : 0;
+                int exit_flags = (select_mode) ? s_find_flags(Warp[A].Exit) : 0;
+                if(entr_flags || (EditorCursor.InteractMode == 0 && CursorCollision(EditorCursor.Location, Warp[A].Entrance)))
                 {
                     EditorCursor.InteractMode = OptCursor_t::LVL_WARPS;
-                    EditorCursor.InteractFlags = 0;
+                    EditorCursor.InteractFlags = entr_flags;
                     EditorCursor.InteractIndex = A;
                     break;
                 }
-                else if(CursorCollision(EditorCursor.Location, Warp[A].Exit) && !Warp[A].Hidden)
+                else if(exit_flags || (EditorCursor.InteractMode == 0 && CursorCollision(EditorCursor.Location, Warp[A].Exit)))
                 {
                     EditorCursor.InteractMode = OptCursor_t::LVL_WARPS;
-                    EditorCursor.InteractFlags = IF_AltMode;
+                    EditorCursor.InteractFlags = IF_AltMode | exit_flags;
                     EditorCursor.InteractIndex = A;
                     break;
                 }

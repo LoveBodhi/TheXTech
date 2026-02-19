@@ -18,19 +18,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
+#include <vector>
+
 #include <Logger/logger.h>
 #include <SDL_net.h>
 
-#include "globals.h"
-#include "player.h"
-#include "graphics.h"
-#include "config.h"
-#include "change_res.h"
-#include "sound.h"
-
 #include "message.h"
 #include "main/client.h"
-#include "main/screen_progress.h"
 
 
 namespace XMessage
@@ -86,8 +81,8 @@ void NetworkClient::Disconnect(bool shutdown)
     if(shutdown)
         return;
 
-    UpdateConfig();
-    UpdateInternalRes();
+    // UpdateConfig();
+    // UpdateInternalRes();
 }
 
 bool NetworkClient::FillBuffer()
@@ -135,7 +130,7 @@ void NetworkClient::ShiftBuffer(size_t shift)
 
 bool NetworkClient::ParseMessage(int client_no, const uint8_t* message, size_t length)
 {
-    UNUSED(client_no);
+    (void)(client_no);
 
     if(length != 4)
         return false;
@@ -164,13 +159,6 @@ void NetworkClient::SendAll()
 {
     if(!socket)
         return;
-
-    // send some information about the local client once sync is complete
-    if(tick == fast_forward_to + 1)
-    {
-        UpdateInternalRes();
-        XMessage::PushMessage({XMessage::Type::multiplayer_prefs, (uint8_t)g_config.two_screen_mode.m_value, (uint8_t)g_config.four_screen_mode.m_value});
-    }
 
     // send everything
     std::vector<uint8_t> to_send;
@@ -213,28 +201,15 @@ void NetworkClient::WaitAndFill()
             pLogInfo("Added P%d on tick %d", buffer[1] + 1, tick);
 
             {
-                Screen_t& screen = Screens[buffer[1]];
-                screen.W = 800;
-                screen.H = 600;
-                screen.two_screen_pref = MultiplayerPrefs::Dynamic;
-                screen.four_screen_pref = MultiplayerPrefs::Shared;
-                screen.canonical_screen().two_screen_pref = screen.two_screen_pref;
-                screen.canonical_screen().four_screen_pref = screen.four_screen_pref;
+                XMessage::Message got;
+                got.type = XMessage::Type::add_client;
+                got.screen = 0;
+                got.player = 0;
+                got.message = buffer[1];
 
-                // move last remaining player to new screen upon connection resumption
-                if(screen.player_count == 0 && numPlayers == 1 && num_clients == 0)
-                {
-                    Screens_DropPlayer(1);
-                    Screens_AssignPlayer(1, screen);
-                    SwapCharacter(1, (buffer[1] % 5) + 1);
-                }
-                else if(Screens[buffer[1]].player_count == 0)
-                    AddPlayer((buffer[1] % 5) + 1, screen);
-
-                SetupScreens();
+                XMessage::PushMessage_Direct(got);
             }
 
-            num_clients++;
             ShiftBuffer(2);
             break;
 
@@ -242,15 +217,16 @@ void NetworkClient::WaitAndFill()
             if(!FillBufferTo(2))
                 return;
 
-            for(int p = Screens[buffer[1]].player_count - 1; p >= 0; p--)
             {
-                if(numPlayers == 1)
-                    break;
+                XMessage::Message got;
+                got.type = XMessage::Type::drop_client;
+                got.screen = 0;
+                got.player = 0;
+                got.message = buffer[1];
 
-                DropPlayer(Screens[buffer[1]].players[p]);
+                XMessage::PushMessage_Direct(got);
             }
 
-            num_clients--;
             ShiftBuffer(2);
             break;
 
@@ -295,46 +271,12 @@ void NetworkClient::WaitAndFill()
             tick++;
 
             // start playing music when no longer fast forwarding
-            if(tick == fast_forward_to)
-                UpdateMusicVolume();
-            else if(tick < fast_forward_to)
-                IndicateProgress(start_fast_forward, num_t(tick) / fast_forward_to, "Loading game history...");
+            // if(tick == fast_forward_to)
+            //     UpdateMusicVolume();
+            // else if(tick < fast_forward_to)
+            //     IndicateProgress(start_fast_forward, num_t(tick) / fast_forward_to, "Loading game history...");
 
             return;
-
-        case(HEADER_YOU_ARE):
-            if(!FillBufferTo(2))
-                return;
-
-            l_screen = &Screens[buffer[1]];
-            ShiftBuffer(2);
-
-            break;
-
-        case(HEADER_RAND_SEED):
-            if(!FillBufferTo(4))
-                return;
-
-            int rand_seed;
-            rand_seed = ((int)buffer[1] << 16) | ((int)buffer[2] << 8) | ((int)buffer[3] << 0);
-
-            seedRandom(rand_seed);
-
-            ShiftBuffer(4);
-
-            break;
-
-        case(HEADER_TIME_IS):
-            if(!FillBufferTo(4))
-                return;
-
-            frame_no = ((int)buffer[1] << 16) | ((int)buffer[2] << 8) | ((int)buffer[3] << 0);
-
-            ShiftBuffer(4);
-
-            fast_forward_to = frame_no;
-            start_fast_forward = SDL_GetTicks();
-            break;
 
         case(HEADER_LEFT_ROOM):
             ShiftBuffer(1);
@@ -416,12 +358,19 @@ void NetworkClient::_FinishJoinRoom()
         return;
     }
 
-    if(!FillBufferTo(5))
+    if(!FillBufferTo(12))
         return;
 
     room_key = ((uint32_t)buffer[1] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[3] << 8) | ((uint32_t)buffer[4] << 0);
 
-    ShiftBuffer(5);
+    you_are = buffer[5];
+
+    rand_seed = ((uint32_t)buffer[6] << 16) | ((uint32_t)buffer[7] << 8) | ((uint32_t)buffer[8] << 0);
+
+    fast_forward_to = ((int)buffer[9] << 16) | ((int)buffer[10] << 8) | ((int)buffer[11] << 0);
+    start_fast_forward = SDL_GetTicks();
+
+    ShiftBuffer(12);
 
     if(requested_join_room_key && room_key != requested_join_room_key)
     {

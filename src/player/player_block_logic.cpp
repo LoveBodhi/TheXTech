@@ -99,6 +99,14 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
 
                             int HitSpot = FindRunningCollision(Player[A].Location, Block[B].Location, block_belt_speed); // this finds what part of the block the player collided
 
+                            // force hitspot 3 during cyclone jump (prevents catching on sides of ceiling blocks)
+                            if(Player[A].State == PLR_STATE_CYCLONE && !Player[A].DoubleJump && HitSpot != 1)
+                            {
+                                // cross-ref FindRunningCollision
+                                if(Player[A].Location.Y - Player[A].Location.SpeedY >= Block[B].Location.Y + Block[B].Location.Height - Block[B].Location.SpeedY)
+                                    HitSpot = 3;
+                            }
+
                             if(BlockNoClipping[Block[B].Type]) // blocks that the player can't touch are forced to hitspot 0 (which means no collision)
                                 HitSpot = 0;
 
@@ -252,7 +260,9 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                                             Player[A].Location.SpeedY = 2;
                                     }
 
-                                    Player[A].Jump = 0;
+                                    // cancel any jump except for a cyclone jump
+                                    if(!(Player[A].State == PLR_STATE_CYCLONE && !Player[A].DoubleJump))
+                                        Player[A].Jump = 0;
                                 }
                             }
 
@@ -538,7 +548,27 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                                     }
                                 }
 
-                                if(floorBlock == 0) // For walking
+                                bool player_drill = (Player[A].State == PLR_STATE_CYCLONE && !Player[A].DoubleJump && Player[A].Controls.Down && Player[A].Location.SpeedY > Physics.PlayerTerminalVelocity * 0.9_n);
+                                if(player_drill && BlockIsBreakable(Block[B]) && Block[B].Type != 90)
+                                {
+                                    BlockHitHard(B);
+                                }
+                                else if(player_drill)
+                                {
+                                    if(Block[B].Special)
+                                    {
+                                        BlockHit(B, true, A);
+                                        PlaySoundSpatial(SFX_BlockHit, Player[A].Location);
+                                    }
+
+                                    player_drill = false;
+                                }
+
+                                if(player_drill)
+                                {
+                                    // just keep going down
+                                }
+                                else if(floorBlock == 0) // For walking
                                 {
                                     floorBlock = B;
                                     floorLocation = Block[B].Location;
@@ -848,6 +878,7 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
                     Block[floorBlock].Layer = LAYER_DESTROYED_BLOCKS;
                     syncLayersTrees_Block(floorBlock);
                     NewEffect(EFFID_SMOKE_S3, Block[floorBlock].Location);
+                    // NOTE: SpeedY was not doubled for EFFID_SMOKE_S3 in SMBX 1.3
                     Effect[numEffects].Location.SpeedY = -2;
                     Player[A].GrabTime = 0;
                 }
@@ -1067,9 +1098,18 @@ void PlayerBlockLogic(int A, int& floorBlock, bool& movingBlock, bool& DontReset
         if(!Player[A].AquaticSwim || Block[ceilingBlock].Special)
             PlaySoundSpatial(SFX_BlockHit, Player[A].Location);
 
-        Player[A].Jump = 0;
         Player[A].Location.Y = Block[ceilingBlock].Location.Y + Block[ceilingBlock].Location.Height + 0.01_n;
-        Player[A].Location.SpeedY = -0.01_n + Block[ceilingBlock].Location.SpeedY;
+
+        if(Player[A].State == PLR_STATE_CYCLONE && !Player[A].DoubleJump && Player[A].Jump)
+        {
+            Player[A].Location.SpeedY += 2.0_n;
+            Player[A].Jump -= 1;
+        }
+        else
+        {
+            Player[A].Location.SpeedY = -0.01_n + Block[ceilingBlock].Location.SpeedY;
+            Player[A].Jump = 0;
+        }
 
         if(Player[A].Vine > 0)
             Player[A].Location.Y += 0.1_n;
